@@ -3,6 +3,7 @@ import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
 import { useEffect, useState } from 'react'
 import blink from './blink/client'
+import LandingPage from './pages/LandingPage'
 import Dashboard from './pages/Dashboard'
 import ChatInterface from './pages/ChatInterface'
 import Settings from './pages/Settings'
@@ -12,43 +13,54 @@ function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // Listen to Blink auth state changes
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state) => {
       setUser(state.user)
-      setLoading(state.isLoading)
+      setLoading(false)
     })
+
+    // Also check initial auth state
+    const checkInitialAuth = async () => {
+      try {
+        const state = await blink.auth.getAuthState()
+        setUser(state.user)
+      } catch (error) {
+        console.error('Failed to check initial auth state:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    checkInitialAuth()
+
     return unsubscribe
   }, [])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-muted-foreground">Initializing neural networks...</p>
-        </div>
-      </div>
-    )
+  // Function to check auth state when needed (called from protected routes)
+  const checkAuthState = async () => {
+    if (user) return user // Already authenticated
+    
+    setLoading(true)
+    try {
+      const state = await blink.auth.getAuthState()
+      setUser(state.user)
+      return state.user
+    } catch (error) {
+      console.error('Failed to check auth state:', error)
+      return null
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (!user) {
+  // Show loading spinner while checking auth state
+  if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-6 max-w-md mx-auto p-8">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-accent bg-clip-text text-transparent">
-              Neural Chat
-            </h1>
-            <p className="text-muted-foreground">
-              Access the future of AI conversation
-            </p>
-          </div>
-          <button
-            onClick={() => blink.auth.login()}
-            className="px-8 py-3 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-all duration-300 glow-purple font-medium"
-          >
-            Initialize Connection
-          </button>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-gray-600">Initializing neural networks...</p>
         </div>
       </div>
     )
@@ -59,9 +71,11 @@ function App() {
       <Router>
         <div className="min-h-screen bg-background">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/chat/:id" element={<ChatInterface />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/" element={user ? <Dashboard /> : <LandingPage />} />
+            <Route path="/landing" element={<LandingPage />} />
+            <Route path="/dashboard" element={user ? <Dashboard /> : <LandingPage />} />
+            <Route path="/chat/:id" element={user ? <ChatInterface /> : <LandingPage />} />
+            <Route path="/settings" element={user ? <Settings /> : <LandingPage />} />
           </Routes>
         </div>
       </Router>

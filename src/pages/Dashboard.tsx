@@ -86,6 +86,15 @@ export default function Dashboard() {
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      await blink.auth.logout()
+      navigate('/landing')
+    } catch (error) {
+      console.error('Failed to logout:', error)
+    }
+  }
+
   const generateBookmarksForSession = async (sessionId: string) => {
     const sessionMessages = messages.filter(msg => msg.chatSessionId === sessionId)
     if (sessionMessages.length >= 4) {
@@ -257,13 +266,13 @@ export default function Dashboard() {
       
       <div className="flex-1 overflow-hidden">
         {/* Header */}
-        <div className="p-8 border-b border-border">
+        <div className="p-8 border-b border-gray-200 bg-white">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-accent bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold text-black">
                 Neural File System
               </h1>
-              <p className="text-muted-foreground mt-1">
+              <p className="text-gray-600 mt-1">
                 Your AI conversations, organized like folders
               </p>
             </div>
@@ -272,7 +281,7 @@ export default function Dashboard() {
                 <Button
                   variant="outline"
                   onClick={handleBackToChats}
-                  className="border-accent/30 text-accent hover:bg-accent/10"
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"
                 >
                   <ArrowLeftIcon className="w-4 h-4 mr-2" />
                   Back to Chats
@@ -280,10 +289,17 @@ export default function Dashboard() {
               )}
               <Button
                 onClick={createNewChat}
-                className="bg-accent hover:bg-accent/90 text-accent-foreground glow-purple"
+                className="bg-black hover:bg-gray-800 text-white border-2 border-black hover:border-gray-800"
               >
                 <PlusIcon className="w-4 h-4 mr-2" />
                 New Chat
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+              >
+                Logout
               </Button>
             </div>
           </div>

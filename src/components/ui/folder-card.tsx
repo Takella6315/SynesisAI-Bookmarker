@@ -45,16 +45,14 @@ export function FolderCard({
       case 'bookmark':
         return <BookmarkIcon className="w-5 h-5 text-accent" />
       default:
-        return isHovered ? 
-          <FolderOpenIcon className="w-6 h-6 text-accent" /> : 
-          <FolderIcon className="w-6 h-6 text-accent" />
+        return <FolderIcon className="w-6 h-6 text-accent text-black" />
     }
   }
 
   return (
     <Card
       className={cn(
-        "folder-card p-6 cursor-pointer border-border hover:border-accent/30 bg-card/50 backdrop-blur-sm transition-all duration-300 group",
+        "folder-card p-6 cursor-pointer border-border backdrop-blur-sm transition-all duration-300 group",
         "hover:shadow-lg hover:shadow-accent/10 hover:scale-[1.02]",
         isBookmark && "bg-accent/5 border-accent/20",
         className
@@ -77,7 +75,7 @@ export function FolderCard({
         
         {/* Content */}
         <div className="space-y-2">
-          <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-accent transition-colors">
+          <h3 className="font-semibold text-foreground line-clamp-2">
             {title}
           </h3>
           {subtitle && (
@@ -101,13 +99,13 @@ export function FolderCard({
         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           {onOpen && (
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={(e) => {
                 e.stopPropagation()
                 onOpen()
               }}
-              className="flex-1 bg-background/50 hover:bg-accent/10 border-accent/30 text-accent hover:text-accent"
+              className="flex-1 bg-black border-accent/30 text-white"
             >
               <ExternalLinkIcon className="w-3 h-3 mr-1" />
               Open
@@ -121,7 +119,7 @@ export function FolderCard({
                 e.stopPropagation()
                 onGoInto()
               }}
-              className="flex-1 bg-accent/10 hover:bg-accent/20 border-accent/30 text-accent hover:text-accent"
+              className="flex-1 bg-black border-accent/30 text-white"
             >
               <ChevronRightIcon className="w-3 h-3 mr-1" />
               Go Into

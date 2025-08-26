@@ -543,33 +543,33 @@ Keep your response conversational and helpful.`
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-sm">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('/')}
-            className="hover:bg-accent/10"
+            className="hover:bg-gray-100 text-gray-700"
           >
             <ArrowLeftIcon className="w-4 h-4" />
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-semibold text-foreground">{session.title}</h1>
+              <h1 className="font-semibold text-black">{session.title}</h1>
               {currentBookmark && (
-                <Badge variant="secondary" className="bg-accent/20 text-accent border-accent/30">
+                <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200">
                   <BookmarkIcon className="w-3 h-3 mr-1" />
                   {currentBookmark.title}
                 </Badge>
               )}
               {focusMode && (
-                <Badge variant="outline" className="border-accent/30 text-accent">
+                <Badge variant="outline" className="border-gray-300 text-gray-700">
                   <FilterIcon className="w-3 h-3 mr-1" />
                   Focus Mode
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-600">
               {focusMode ? `${filteredMessages.length} filtered messages` : `${filteredMessages.length} messages`}
               {currentBookmark && !focusMode && ` • Viewing bookmark: ${currentBookmark.title}`}
             </p>
@@ -578,7 +578,7 @@ Keep your response conversational and helpful.`
         
         <div className="flex items-center gap-2">
           <Select value={selectedModel} onValueChange={(value: LLMModel) => setSelectedModel(value)}>
-            <SelectTrigger className="w-48 bg-background/50 border-border">
+            <SelectTrigger className="w-48 bg-white border-gray-300">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -586,7 +586,7 @@ Keep your response conversational and helpful.`
                 <SelectItem key={model.id} value={model.id}>
                   <div className="flex flex-col">
                     <span className="font-medium">{model.name}</span>
-                    <span className="text-xs text-muted-foreground">{model.provider}</span>
+                    <span className="text-xs text-gray-500">{model.provider}</span>
                   </div>
                 </SelectItem>
               ))}
@@ -596,22 +596,38 @@ Keep your response conversational and helpful.`
             variant="ghost" 
             size="sm"
             onClick={() => navigate('/settings')}
+            className="text-gray-700 hover:bg-gray-100"
           >
             <SettingsIcon className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={async () => {
+              try {
+                await blink.auth.logout()
+                navigate('/landing')
+              } catch (error) {
+                console.error('Failed to logout:', error)
+              }
+            }}
+            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+          >
+            Logout
           </Button>
         </div>
       </div>
 
       {/* Bookmark Navigation */}
       {currentBookmark && bookmarkMessages.length > 0 && (
-        <div className="px-4 py-2 border-b border-border bg-muted/30">
+        <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <BookmarkIcon className="w-4 h-4 text-accent" />
-              <span className="text-sm font-medium text-foreground">
+              <BookmarkIcon className="w-4 h-4 text-black" />
+              <span className="text-sm font-medium text-black">
                 {currentBookmark.title}
               </span>
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs bg-white text-gray-700 border-gray-200">
                 {bookmarkMessages.length} message{bookmarkMessages.length !== 1 ? 's' : ''}
               </Badge>
             </div>
@@ -622,12 +638,12 @@ Keep your response conversational and helpful.`
                 size="sm"
                 onClick={() => navigateBookmarkMessage('prev')}
                 disabled={bookmarkMessageIndex === 0}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 <ChevronLeftIcon className="w-4 h-4" />
               </Button>
               
-              <span className="text-sm text-muted-foreground min-w-[60px] text-center">
+              <span className="text-sm text-gray-600 min-w-[60px] text-center">
                 {bookmarkMessageIndex + 1} of {bookmarkMessages.length}
               </span>
               
@@ -636,7 +652,7 @@ Keep your response conversational and helpful.`
                 size="sm"
                 onClick={() => navigateBookmarkMessage('next')}
                 disabled={bookmarkMessageIndex === bookmarkMessages.length - 1}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 <ChevronRightIcon className="w-4 h-4" />
               </Button>

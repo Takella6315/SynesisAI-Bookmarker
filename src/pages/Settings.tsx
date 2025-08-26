@@ -117,21 +117,35 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b border-border bg-card/50 backdrop-blur-sm">
+      <div className="border-b border-gray-200 bg-white">
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/')}
-              className="hover:bg-accent/10"
+              className="hover:bg-gray-100 text-gray-700"
             >
               <ArrowLeftIcon className="w-4 h-4" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-              <p className="text-sm text-muted-foreground">Manage your account and preferences</p>
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-black">Settings</h1>
+              <p className="text-sm text-gray-600">Manage your account and preferences</p>
             </div>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await blink.auth.logout()
+                  navigate('/landing')
+                } catch (error) {
+                  console.error('Failed to logout:', error)
+                }
+              }}
+              className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+            >
+              Logout
+            </Button>
           </div>
         </div>
       </div>

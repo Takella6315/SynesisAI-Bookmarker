@@ -109,87 +109,9 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
       {/* Content */}
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-6">
-          {/* Chat Sessions */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <FolderIcon className="w-4 h-4 text-accent" />
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Chat Folders
-              </h2>
-            </div>
-            <div className="space-y-1">
-              {filteredSessions.map((session) => (
-                <Link
-                  key={session.id}
-                  to={`/chat/${session.id}`}
-                  className={`block p-3 rounded-lg transition-all duration-200 hover:bg-accent/10 hover:border-accent/30 border border-transparent group ${
-                    location.pathname === `/chat/${session.id}` 
-                      ? 'bg-accent/10 border-accent/30' 
-                      : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center group-hover:from-accent/30 group-hover:to-accent/20 transition-all">
-                      <MessageSquareIcon className="w-4 h-4 text-accent" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {session.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {session.messageCount} messages • {session.model}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-              {filteredSessions.length === 0 && searchQuery && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No chats found
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Bookmarks */}
-          {filteredBookmarks.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <BookmarkIcon className="w-4 h-4 text-accent" />
-                  <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    Bookmarks
-                  </h2>
-                </div>
-                <div className="space-y-1">
-                  {filteredBookmarks.map((bookmark) => (
-                    <Link
-                      key={bookmark.id}
-                      to={`/chat/${bookmark.chatSessionId}?bookmark=${bookmark.id}`}
-                      className="block p-3 rounded-lg transition-all duration-200 hover:bg-accent/10 hover:border-accent/30 border border-transparent group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 rounded bg-accent/20 flex items-center justify-center group-hover:bg-accent/30 transition-all">
-                          <BookmarkIcon className="w-3 h-3 text-accent" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {bookmark.title}
-                          </p>
-                          {bookmark.description && (
-                            <p className="text-xs text-muted-foreground truncate">
-                              {bookmark.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+          
+          
+          
         </div>
       </ScrollArea>
 
