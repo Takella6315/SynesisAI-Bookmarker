@@ -1,73 +1,73 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { 
-  FolderIcon, 
-  MessageSquareIcon, 
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  FolderIcon,
+  MessageSquareIcon,
   PlusIcon,
   BookmarkIcon,
   SparklesIcon,
   ArrowLeftIcon,
   HomeIcon,
-  ChevronRightIcon
-} from 'lucide-react'
-import { Button } from '../components/ui/button.tsx'
-import { FolderCard } from '../components/ui/folder-card.tsx'
-import Sidebar from '../components/layout/Sidebar.tsx'
-import blink from '../blink/client.ts'
-import { ChatSession, Bookmark, Message, FolderViewState } from '../types'
-import { LLM_MODELS } from '../constants/models'
-import { generateBookmarksForChat, generateChatSummary } from '../utils/bookmark-generator'
+  ChevronRightIcon,
+} from 'lucide-react';
+import { Button } from '../components/ui/button.tsx';
+import { FolderCard } from '../components/ui/folder-card.tsx';
+import Sidebar from '../components/layout/Sidebar.tsx';
+import blink from '../blink/client.ts';
+import { ChatSession, Bookmark, Message, FolderViewState } from '../types';
+import { LLM_MODELS } from '../constants/models';
+import { generateBookmarksForChat, generateChatSummary } from '../utils/bookmark-generator';
 
 export default function Dashboard() {
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
-  const [messages, setMessages] = useState<Message[]>([])
-  const [user, setUser] = useState(null)
-  const [viewState, setViewState] = useState<FolderViewState>({ type: 'chats' })
-  const [isLoading, setIsLoading] = useState(false)
-  const navigate = useNavigate()
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [user, setUser] = useState(null);
+  const [viewState, setViewState] = useState<FolderViewState>({ type: 'chats' });
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const loadData = useCallback(async () => {
-    if (!user) return
-    setIsLoading(true)
+    if (!user) return;
+    setIsLoading(true);
     try {
       const [sessions, bookmarkList, messageList] = await Promise.all([
         blink.db.chatSessions.list({
           where: { userId: user.id },
           orderBy: { updatedAt: 'desc' },
-          limit: 50
+          limit: 50,
         }),
         blink.db.bookmarks.list({
           where: { userId: user.id },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
         }),
         blink.db.messages.list({
           where: { userId: user.id },
-          orderBy: { createdAt: 'asc' }
-        })
-      ])
-      setChatSessions(sessions)
-      setBookmarks(bookmarkList)
-      setMessages(messageList)
+          orderBy: { createdAt: 'asc' },
+        }),
+      ]);
+      setChatSessions(sessions);
+      setBookmarks(bookmarkList);
+      setMessages(messageList);
     } catch (error) {
-      console.error('Failed to load data:', error)
+      console.error('Failed to load data:', error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [user])
+  }, [user]);
 
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state) => {
-      setUser(state.user)
-    })
-    return unsubscribe
-  }, [])
+      setUser(state.user);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (user) {
-      loadData()
+      loadData();
     }
-  }, [user, loadData])
+  }, [user, loadData]);
 
   const createNewChat = async () => {
     try {
@@ -78,91 +78,91 @@ export default function Dashboard() {
         model: 'gpt-4o-mini',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        messageCount: 0
-      })
-      navigate(`/chat/${newSession.id}`)
+        messageCount: 0,
+      });
+      navigate(`/chat/${newSession.id}`);
     } catch (error) {
-      console.error('Failed to create new chat:', error)
+      console.error('Failed to create new chat:', error);
     }
-  }
+  };
 
   const handleLogout = async () => {
     try {
-      await blink.auth.logout()
-      navigate('/landing')
+      await blink.auth.logout();
+      navigate('/landing');
     } catch (error) {
-      console.error('Failed to logout:', error)
+      console.error('Failed to logout:', error);
     }
-  }
+  };
 
   const generateBookmarksForSession = async (sessionId: string) => {
-    const sessionMessages = messages.filter(msg => msg.chatSessionId === sessionId)
+    const sessionMessages = messages.filter(msg => msg.chatSessionId === sessionId);
     if (sessionMessages.length >= 4) {
-      const newBookmarks = await generateBookmarksForChat(sessionId, user.id, sessionMessages)
+      const newBookmarks = await generateBookmarksForChat(sessionId, user.id, sessionMessages);
       if (newBookmarks.length > 0) {
-        setBookmarks(prev => [...prev, ...newBookmarks])
+        setBookmarks(prev => [...prev, ...newBookmarks]);
       }
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
     if (diffInHours < 24) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else if (diffInHours < 168) { // 7 days
-      return date.toLocaleDateString([], { weekday: 'short' })
+      return date.toLocaleDateString([], { weekday: 'short' });
     } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
-  }
+  };
 
   const getModelInfo = (modelId: string) => {
-    return LLM_MODELS.find(m => m.id === modelId) || LLM_MODELS[0]
-  }
+    return LLM_MODELS.find(m => m.id === modelId) || LLM_MODELS[0];
+  };
 
   const getChatSummary = (session: ChatSession) => {
-    const firstMessage = messages.find(msg => 
-      msg.chatSessionId === session.id && msg.role === 'user'
-    )
-    
+    const firstMessage = messages.find(msg =>
+      msg.chatSessionId === session.id && msg.role === 'user',
+    );
+
     if (firstMessage) {
-      return generateChatSummary(firstMessage.content)
+      return generateChatSummary(firstMessage.content);
     }
-    
-    return session.title
-  }
+
+    return session.title;
+  };
 
   const getBookmarksForChat = (chatId: string) => {
-    return bookmarks.filter(bookmark => bookmark.chatSessionId === chatId)
-  }
+    return bookmarks.filter(bookmark => bookmark.chatSessionId === chatId);
+  };
 
   const handleOpenChat = (sessionId: string) => {
-    navigate(`/chat/${sessionId}`)
-  }
+    navigate(`/chat/${sessionId}`);
+  };
 
   const handleGoIntoChat = (session: ChatSession) => {
     setViewState({
       type: 'bookmarks',
       parentChatId: session.id,
-      parentChatTitle: getChatSummary(session)
-    })
-  }
+      parentChatTitle: getChatSummary(session),
+    });
+  };
 
   const handleOpenBookmark = (bookmark: Bookmark) => {
-    navigate(`/chat/${bookmark.chatSessionId}?bookmark=${bookmark.id}`)
-  }
+    navigate(`/chat/${bookmark.chatSessionId}?bookmark=${bookmark.id}`);
+  };
 
   const handleGoIntoBookmark = (bookmark: Bookmark) => {
     // For bookmarks, "Go Into" shows only messages related to that bookmark
-    navigate(`/chat/${bookmark.chatSessionId}?bookmark=${bookmark.id}&focus=true`)
-  }
+    navigate(`/chat/${bookmark.chatSessionId}?bookmark=${bookmark.id}&focus=true`);
+  };
 
   const handleBackToChats = () => {
-    setViewState({ type: 'chats' })
-  }
+    setViewState({ type: 'chats' });
+  };
 
   const renderBreadcrumb = () => {
     if (viewState.type === 'chats') {
@@ -171,7 +171,7 @@ export default function Dashboard() {
           <HomeIcon className="w-4 h-4" />
           <span>All Chats</span>
         </div>
-      )
+      );
     }
 
     return (
@@ -188,8 +188,8 @@ export default function Dashboard() {
         <ChevronRightIcon className="w-3 h-3" />
         <span className="text-foreground">{viewState.parentChatTitle}</span>
       </div>
-    )
-  }
+    );
+  };
 
   const renderContent = () => {
     if (viewState.type === 'chats') {
@@ -197,10 +197,10 @@ export default function Dashboard() {
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {chatSessions.map((session) => {
-            const modelInfo = getModelInfo(session.model)
-            const chatBookmarks = getBookmarksForChat(session.id)
-            const summary = getChatSummary(session)
-            
+            const modelInfo = getModelInfo(session.model);
+            const chatBookmarks = getBookmarksForChat(session.id);
+            const summary = getChatSummary(session);
+
             return (
               <FolderCard
                 key={session.id}
@@ -213,15 +213,15 @@ export default function Dashboard() {
                 onOpen={() => handleOpenChat(session.id)}
                 onGoInto={chatBookmarks.length > 0 ? () => handleGoIntoChat(session) : undefined}
               />
-            )
+            );
           })}
         </div>
-      )
+      );
     }
 
     // Show bookmarks for the selected chat
-    const chatBookmarks = getBookmarksForChat(viewState.parentChatId!)
-    
+    const chatBookmarks = getBookmarksForChat(viewState.parentChatId!);
+
     if (chatBookmarks.length === 0) {
       return (
         <div className="text-center py-12">
@@ -239,7 +239,7 @@ export default function Dashboard() {
             Generate Bookmarks
           </Button>
         </div>
-      )
+      );
     }
 
     return (
@@ -257,13 +257,13 @@ export default function Dashboard() {
           />
         ))}
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div className="flex h-screen bg-background">
       <Sidebar onNewChat={createNewChat} />
-      
+
       <div className="flex-1 overflow-hidden">
         {/* Header */}
         <div className="p-8 border-b border-gray-200 bg-white">
@@ -303,7 +303,7 @@ export default function Dashboard() {
               </Button>
             </div>
           </div>
-          
+
           {/* Breadcrumb */}
           {renderBreadcrumb()}
         </div>
@@ -341,5 +341,5 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
-  )
+  );
 }

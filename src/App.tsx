@@ -1,58 +1,58 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { ThemeProvider } from 'next-themes'
-import { Toaster } from 'sonner'
-import { useEffect, useState } from 'react'
-import blink from './blink/client'
-import LandingPage from './pages/LandingPage.tsx'
-import Dashboard from './pages/Dashboard.tsx'
-import ChatInterface from './pages/ChatInterface.tsx'
-import Settings from './pages/Settings.tsx'
-import './App.css'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from 'next-themes';
+import { Toaster } from 'sonner';
+import { useEffect, useState } from 'react';
+import blink from './blink/client';
+import LandingPage from './pages/LandingPage.tsx';
+import Dashboard from './pages/Dashboard.tsx';
+import ChatInterface from './pages/ChatInterface.tsx';
+import Settings from './pages/Settings.tsx';
+import './App.css';
 
 function App() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // Listen to Blink auth state changes
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state) => {
-      setUser(state.user)
-      setLoading(false)
-    })
+      setUser(state.user);
+      setLoading(false);
+    });
 
     // Also check initial auth state
     const checkInitialAuth = async () => {
       try {
-        const state = await blink.auth.getAuthState()
-        setUser(state.user)
+        const state = await blink.auth.getAuthState();
+        setUser(state.user);
       } catch (error) {
-        console.error('Failed to check initial auth state:', error)
+        console.error('Failed to check initial auth state:', error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    checkInitialAuth()
+    checkInitialAuth();
 
-    return unsubscribe
-  }, [])
+    return unsubscribe;
+  }, []);
 
   // Function to check auth state when needed (called from protected routes)
   const checkAuthState = async () => {
-    if (user) return user // Already authenticated
-    
-    setLoading(true)
+    if (user) return user; // Already authenticated
+
+    setLoading(true);
     try {
-      const state = await blink.auth.getAuthState()
-      setUser(state.user)
-      return state.user
+      const state = await blink.auth.getAuthState();
+      setUser(state.user);
+      return state.user;
     } catch (error) {
-      console.error('Failed to check auth state:', error)
-      return null
+      console.error('Failed to check auth state:', error);
+      return null;
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Show loading spinner while checking auth state
   if (loading) {
@@ -63,7 +63,7 @@ function App() {
           <p className="text-gray-600">Initializing neural networks...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -81,7 +81,7 @@ function App() {
       </Router>
       <Toaster position="top-right" />
     </ThemeProvider>
-  )
+  );
 }
 
-export default App
+export default App;

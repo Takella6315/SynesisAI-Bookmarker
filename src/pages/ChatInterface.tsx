@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { 
-  SendIcon, 
-  ArrowLeftIcon, 
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  SendIcon,
+  ArrowLeftIcon,
   SettingsIcon,
   BookmarkIcon,
   UserIcon,
@@ -10,299 +10,299 @@ import {
   ChevronDownIcon,
   FilterIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
-} from 'lucide-react'
-import { Button } from '../components/ui/button'
-import { Textarea } from '../components/ui/textarea'
-import { ScrollArea } from '../components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
-import { Card } from '../components/ui/card'
-import { Badge } from '../components/ui/badge'
-import { toast } from 'sonner'
-import blink from '../blink/client'
-import { ChatSession, Message, LLMModel, Bookmark } from '../types'
-import { LLM_MODELS } from '../constants/models'
-import { generateBookmarksForChat } from '../utils/bookmark-generator'
+  ChevronRightIcon,
+} from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
+import { ScrollArea } from '../components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Card } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { toast } from 'sonner';
+import blink from '../blink/client';
+import { ChatSession, Message, LLMModel, Bookmark } from '../types';
+import { LLM_MODELS } from '../constants/models';
+import { generateBookmarksForChat } from '../utils/bookmark-generator';
 
 export default function ChatInterface() {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const [session, setSession] = useState<ChatSession | null>(null)
-  const [allMessages, setAllMessages] = useState<Message[]>([])
-  const [filteredMessages, setFilteredMessages] = useState<Message[]>([])
-  const [currentBookmark, setCurrentBookmark] = useState<Bookmark | null>(null)
-  const [inputValue, setInputValue] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [user, setUser] = useState(null)
-  const [selectedModel, setSelectedModel] = useState<LLMModel>('gpt-4o-mini')
-  const [bookmarkMessageIndex, setBookmarkMessageIndex] = useState(0) // Track current position in bookmark messages
-  const [bookmarkMessages, setBookmarkMessages] = useState<Message[]>([]) // Store bookmark-specific messages
-  const [messageQueue, setMessageQueue] = useState<Message[]>([]) // Keep last 15 messages for LLM context
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const bookmarkId = searchParams.get('bookmark')
-  const focusMode = searchParams.get('focus') === 'true'
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [session, setSession] = useState<ChatSession | null>(null);
+  const [allMessages, setAllMessages] = useState<Message[]>([]);
+  const [filteredMessages, setFilteredMessages] = useState<Message[]>([]);
+  const [currentBookmark, setCurrentBookmark] = useState<Bookmark | null>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [selectedModel, setSelectedModel] = useState<LLMModel>('gpt-4o-mini');
+  const [bookmarkMessageIndex, setBookmarkMessageIndex] = useState(0); // Track current position in bookmark messages
+  const [bookmarkMessages, setBookmarkMessages] = useState<Message[]>([]); // Store bookmark-specific messages
+  const [messageQueue, setMessageQueue] = useState<Message[]>([]); // Keep last 15 messages for LLM context
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const bookmarkId = searchParams.get('bookmark');
+  const focusMode = searchParams.get('focus') === 'true';
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const scrollToMessage = (messageId: string) => {
-    const messageElement = document.getElementById(`message-${messageId}`)
+    const messageElement = document.getElementById(`message-${messageId}`);
     if (messageElement) {
-      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }
+  };
 
   const navigateBookmarkMessage = (direction: 'next' | 'prev') => {
-    if (bookmarkMessages.length === 0) return
-    
-    let newIndex = bookmarkMessageIndex
+    if (bookmarkMessages.length === 0) return;
+
+    let newIndex = bookmarkMessageIndex;
     if (direction === 'next') {
-      newIndex = Math.min(bookmarkMessageIndex + 1, bookmarkMessages.length - 1)
+      newIndex = Math.min(bookmarkMessageIndex + 1, bookmarkMessages.length - 1);
     } else {
-      newIndex = Math.max(bookmarkMessageIndex - 1, 0)
+      newIndex = Math.max(bookmarkMessageIndex - 1, 0);
     }
-    
-    setBookmarkMessageIndex(newIndex)
-    scrollToMessage(bookmarkMessages[newIndex].id)
-  }
+
+    setBookmarkMessageIndex(newIndex);
+    scrollToMessage(bookmarkMessages[newIndex].id);
+  };
 
   const goToFirstBookmarkMessage = () => {
     if (bookmarkMessages.length > 0) {
-      setBookmarkMessageIndex(0)
-      scrollToMessage(bookmarkMessages[0].id)
+      setBookmarkMessageIndex(0);
+      scrollToMessage(bookmarkMessages[0].id);
     }
-  }
+  };
 
   const updateBookmarkMessageIndex = () => {
-    if (!currentBookmark || bookmarkMessages.length === 0) return
-    
+    if (!currentBookmark || bookmarkMessages.length === 0) return;
+
     // Find which bookmark message is currently most visible
     const messageElements = bookmarkMessages.map(msg => ({
       id: msg.id,
-      element: document.getElementById(`message-${msg.id}`)
-    })).filter(item => item.element)
-    
-    if (messageElements.length === 0) return
-    
+      element: document.getElementById(`message-${msg.id}`),
+    })).filter(item => item.element);
+
+    if (messageElements.length === 0) return;
+
     // Find the message closest to the center of the viewport
-    const viewportCenter = window.innerHeight / 2
-    let closestMessage = messageElements[0]
-    let closestDistance = Infinity
-    
+    const viewportCenter = window.innerHeight / 2;
+    let closestMessage = messageElements[0];
+    let closestDistance = Infinity;
+
     messageElements.forEach(item => {
       if (item.element) {
-        const rect = item.element.getBoundingClientRect()
-        const distance = Math.abs(rect.top + rect.height / 2 - viewportCenter)
+        const rect = item.element.getBoundingClientRect();
+        const distance = Math.abs(rect.top + rect.height / 2 - viewportCenter);
         if (distance < closestDistance) {
-          closestDistance = distance
-          closestMessage = item
+          closestDistance = distance;
+          closestMessage = item;
         }
       }
-    })
-    
-    const newIndex = bookmarkMessages.findIndex(msg => msg.id === closestMessage.id)
+    });
+
+    const newIndex = bookmarkMessages.findIndex(msg => msg.id === closestMessage.id);
     if (newIndex !== -1 && newIndex !== bookmarkMessageIndex) {
-      setBookmarkMessageIndex(newIndex)
+      setBookmarkMessageIndex(newIndex);
     }
-  }
+  };
 
   const updateMessageQueue = (newMessage: Message) => {
     setMessageQueue(prev => {
-      const updated = [...prev, newMessage]
+      const updated = [...prev, newMessage];
       // Keep only the last 15 messages
-      return updated.slice(-15)
-    })
-  }
+      return updated.slice(-15);
+    });
+  };
 
   const getLLMContext = () => {
     // Format the last 15 messages as context for the LLM
-    return messageQueue.map(msg => 
-      `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
-    ).join('\n\n')
-  }
+    return messageQueue.map(msg =>
+      `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`,
+    ).join('\n\n');
+  };
 
   const getMessagesForBookmark = (bookmark: Bookmark, messages: Message[]) => {
     // If bookmark has specific message IDs, filter by those
     if (bookmark.messageIds) {
-      const messageIds = bookmark.messageIds.split(',')
-      const taggedMessages = messages.filter(msg => messageIds.includes(msg.id))
-      
+      const messageIds = bookmark.messageIds.split(',');
+      const taggedMessages = messages.filter(msg => messageIds.includes(msg.id));
+
       // For focus mode, we want to show conversation pairs
       // Find all messages that are part of conversations with tagged messages
-      const conversationMessages: Message[] = []
-      
+      const conversationMessages: Message[] = [];
+
       taggedMessages.forEach(taggedMsg => {
         // Find the conversation pair for this tagged message
-        const msgIndex = messages.findIndex(msg => msg.id === taggedMsg.id)
-        
+        const msgIndex = messages.findIndex(msg => msg.id === taggedMsg.id);
+
         if (msgIndex !== -1) {
           // Add the tagged message
-          conversationMessages.push(taggedMsg)
-          
+          conversationMessages.push(taggedMsg);
+
           // If it's a user message, add the next message (AI response) if it exists
           if (taggedMsg.role === 'user' && msgIndex + 1 < messages.length) {
-            const nextMsg = messages[msgIndex + 1]
+            const nextMsg = messages[msgIndex + 1];
             if (nextMsg.role === 'assistant') {
-              conversationMessages.push(nextMsg)
+              conversationMessages.push(nextMsg);
             }
           }
-          
+
           // If it's an AI message, add the previous message (user input) if it exists
           if (taggedMsg.role === 'assistant' && msgIndex > 0) {
-            const prevMsg = messages[msgIndex - 1]
+            const prevMsg = messages[msgIndex - 1];
             if (prevMsg.role === 'user') {
-              conversationMessages.push(prevMsg)
+              conversationMessages.push(prevMsg);
             }
           }
         }
-      })
-      
+      });
+
       // Remove duplicates and sort by creation time
-      const uniqueMessages = conversationMessages.filter((msg, index, self) => 
-        index === self.findIndex(m => m.id === msg.id)
-      )
-      
-      return uniqueMessages.sort((a, b) => 
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      )
+      const uniqueMessages = conversationMessages.filter((msg, index, self) =>
+        index === self.findIndex(m => m.id === msg.id),
+      );
+
+      return uniqueMessages.sort((a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
     }
-    
+
     // Otherwise, filter by category/topic keywords (fallback)
-    const keywords = bookmark.category?.toLowerCase().split(' ') || []
-    if (keywords.length === 0) return messages
-    
-    return messages.filter(msg => 
-      keywords.some(keyword => 
-        msg.content.toLowerCase().includes(keyword)
-      )
-    )
-  }
+    const keywords = bookmark.category?.toLowerCase().split(' ') || [];
+    if (keywords.length === 0) return messages;
+
+    return messages.filter(msg =>
+      keywords.some(keyword =>
+        msg.content.toLowerCase().includes(keyword),
+      ),
+    );
+  };
 
   const loadChatSession = useCallback(async () => {
-    if (!user || !id) return
+    if (!user || !id) return;
     try {
       const sessions = await blink.db.chatSessions.list({
-        where: { id, userId: user.id }
-      })
+        where: { id, userId: user.id },
+      });
       if (sessions.length > 0) {
-        const sessionData = sessions[0]
-        setSession(sessionData)
-        setSelectedModel(sessionData.model as LLMModel)
+        const sessionData = sessions[0];
+        setSession(sessionData);
+        setSelectedModel(sessionData.model as LLMModel);
       }
     } catch (error) {
-      console.error('Failed to load chat session:', error)
-      navigate('/')
+      console.error('Failed to load chat session:', error);
+      navigate('/');
     }
-  }, [user, id, navigate])
+  }, [user, id, navigate]);
 
   const loadMessages = useCallback(async () => {
-    if (!user || !id) return
+    if (!user || !id) return;
     try {
       const messageList = await blink.db.messages.list({
         where: { chatSessionId: id, userId: user.id },
-        orderBy: { createdAt: 'asc' }
-      })
-      setAllMessages(messageList)
-      
+        orderBy: { createdAt: 'asc' },
+      });
+      setAllMessages(messageList);
+
       // Initialize message queue with existing messages (last 15)
-      const initialQueue = messageList.slice(-15)
-      setMessageQueue(initialQueue)
-      
+      const initialQueue = messageList.slice(-15);
+      setMessageQueue(initialQueue);
+
       // Load bookmark if specified
       if (bookmarkId) {
         const bookmarks = await blink.db.bookmarks.list({
-          where: { id: bookmarkId, userId: user.id }
-        })
+          where: { id: bookmarkId, userId: user.id },
+        });
         if (bookmarks.length > 0) {
-          const bookmark = bookmarks[0]
-          setCurrentBookmark(bookmark)
-          
+          const bookmark = bookmarks[0];
+          setCurrentBookmark(bookmark);
+
           // Get messages for this bookmark (including conversation pairs)
-          const bookmarkMessageList = getMessagesForBookmark(bookmark, messageList)
-          setBookmarkMessages(bookmarkMessageList)
-          setBookmarkMessageIndex(0) // Start at first bookmark message
-          
+          const bookmarkMessageList = getMessagesForBookmark(bookmark, messageList);
+          setBookmarkMessages(bookmarkMessageList);
+          setBookmarkMessageIndex(0); // Start at first bookmark message
+
           console.log(`📚 Bookmark "${bookmark.title}" processing:`, {
             totalMessages: messageList.length,
             taggedMessageIds: bookmark.messageIds?.split(',') || [],
             bookmarkMessagesFound: bookmarkMessageList.length,
             focusMode,
-            messages: bookmarkMessageList.map(m => ({ id: m.id, role: m.role, content: m.content.substring(0, 50) + '...' }))
-          })
-          
+            messages: bookmarkMessageList.map(m => ({ id: m.id, role: m.role, content: `${m.content.substring(0, 50)}...` })),
+          });
+
           if (focusMode) {
             // Show only messages related to this bookmark (conversation pairs)
-            setFilteredMessages(bookmarkMessageList)
+            setFilteredMessages(bookmarkMessageList);
           } else {
-            setFilteredMessages(messageList)
+            setFilteredMessages(messageList);
           }
-          
+
           // Auto-scroll to first bookmark message after a short delay
           setTimeout(() => {
             if (bookmarkMessageList.length > 0) {
-              scrollToMessage(bookmarkMessageList[0].id)
+              scrollToMessage(bookmarkMessageList[0].id);
             }
-          }, 100)
+          }, 100);
         } else {
-          setFilteredMessages(messageList)
-          setBookmarkMessages([])
-          setBookmarkMessageIndex(0)
+          setFilteredMessages(messageList);
+          setBookmarkMessages([]);
+          setBookmarkMessageIndex(0);
         }
       } else {
-        setCurrentBookmark(null)
-        setFilteredMessages(messageList)
-        setBookmarkMessages([])
-        setBookmarkMessageIndex(0)
+        setCurrentBookmark(null);
+        setFilteredMessages(messageList);
+        setBookmarkMessages([]);
+        setBookmarkMessageIndex(0);
       }
     } catch (error) {
-      console.error('Failed to load messages:', error)
+      console.error('Failed to load messages:', error);
     }
-  }, [user, id, bookmarkId, focusMode])
+  }, [user, id, bookmarkId, focusMode]);
 
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state) => {
-      setUser(state.user)
-    })
-    return unsubscribe
-  }, [])
+      setUser(state.user);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (user && id) {
-      loadChatSession()
-      loadMessages()
+      loadChatSession();
+      loadMessages();
     }
-  }, [user, id, loadChatSession, loadMessages])
+  }, [user, id, loadChatSession, loadMessages]);
 
   useEffect(() => {
-    scrollToBottom()
-  }, [filteredMessages])
-  
+    scrollToBottom();
+  }, [filteredMessages]);
+
   // Add scroll listener for bookmark navigation
   useEffect(() => {
     if (currentBookmark && bookmarkMessages.length > 0) {
       const handleScroll = () => {
-        updateBookmarkMessageIndex()
-      }
-      
-      window.addEventListener('scroll', handleScroll, { passive: true })
-      return () => window.removeEventListener('scroll', handleScroll)
+        updateBookmarkMessageIndex();
+      };
+
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      return () => window.removeEventListener('scroll', handleScroll);
     }
-  }, [currentBookmark, bookmarkMessages, bookmarkMessageIndex])
-  
+  }, [currentBookmark, bookmarkMessages, bookmarkMessageIndex]);
+
   // Store user info when they first authenticate
   useEffect(() => {
     const storeUserInfo = async () => {
-      if (!user) return
-      
+      if (!user) return;
+
       try {
         // Check if user already exists
         const existingUsers = await blink.db.users.list({
-          where: { id: user.id }
-        })
-        
+          where: { id: user.id },
+        });
+
         if (existingUsers.length === 0) {
           // Create user record
           await blink.db.users.create({
@@ -311,43 +311,43 @@ export default function ChatInterface() {
             displayName: user.displayName || user.email.split('@')[0],
             avatarUrl: user.avatarUrl,
             createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          })
+            updatedAt: new Date().toISOString(),
+          });
         }
       } catch (error) {
-        console.error('Failed to store user info:', error)
+        console.error('Failed to store user info:', error);
       }
-    }
-    
-    storeUserInfo()
-  }, [user])
+    };
+
+    storeUserInfo();
+  }, [user]);
 
   const updateSessionTitle = async (firstMessage: string) => {
-    if (!session || session.messageCount > 0) return
-    
+    if (!session || session.messageCount > 0) return;
+
     try {
       // Generate a title from the first message
-      const title = firstMessage.length > 50 
-        ? firstMessage.substring(0, 50) + '...'
-        : firstMessage
-      
+      const title = firstMessage.length > 50
+        ? `${firstMessage.substring(0, 50)}...`
+        : firstMessage;
+
       await blink.db.chatSessions.update(session.id, {
         title,
-        updatedAt: new Date().toISOString()
-      })
-      
-      setSession(prev => prev ? { ...prev, title } : null)
+        updatedAt: new Date().toISOString(),
+      });
+
+      setSession(prev => prev ? { ...prev, title } : null);
     } catch (error) {
-      console.error('Failed to update session title:', error)
+      console.error('Failed to update session title:', error);
     }
-  }
+  };
 
   const sendMessage = async () => {
-    if (!inputValue.trim() || isLoading || !session) return
+    if (!inputValue.trim() || isLoading || !session) return;
 
-    const userMessage = inputValue.trim()
-    setInputValue('')
-    setIsLoading(true)
+    const userMessage = inputValue.trim();
+    setInputValue('');
+    setIsLoading(true);
 
     try {
       // Create user message
@@ -357,26 +357,26 @@ export default function ChatInterface() {
         userId: user.id,
         role: 'user',
         content: userMessage,
-        createdAt: new Date().toISOString()
-      })
+        createdAt: new Date().toISOString(),
+      });
 
       // Update message queue with user message
-      updateMessageQueue(userMessageObj)
+      updateMessageQueue(userMessageObj);
 
       // Optimistically update UI
-      const afterUserMessages = [...allMessages, userMessageObj]
-      setAllMessages(afterUserMessages)
-      setFilteredMessages(prev => [...prev, userMessageObj])
+      const afterUserMessages = [...allMessages, userMessageObj];
+      setAllMessages(afterUserMessages);
+      setFilteredMessages(prev => [...prev, userMessageObj]);
 
       // Update session title if this is the first message
       if (session.messageCount === 0) {
-        await updateSessionTitle(userMessage)
+        await updateSessionTitle(userMessage);
       }
 
       // Generate AI response with streaming and markdown formatting
-      let assistantContent = ''
-      const assistantMessageId = `msg_${Date.now()}_assistant`
-      
+      let assistantContent = '';
+      const assistantMessageId = `msg_${Date.now()}_assistant`;
+
       // Create placeholder assistant message
       const assistantMessage = {
         id: assistantMessageId,
@@ -385,15 +385,15 @@ export default function ChatInterface() {
         role: 'assistant' as const,
         content: '',
         model: selectedModel,
-        createdAt: new Date().toISOString()
-      }
-      
+        createdAt: new Date().toISOString(),
+      };
+
       // Add placeholder to UI
-      setAllMessages(prev => [...prev, assistantMessage])
-      setFilteredMessages(prev => [...prev, assistantMessage])
-      
+      setAllMessages(prev => [...prev, assistantMessage]);
+      setFilteredMessages(prev => [...prev, assistantMessage]);
+
       // Build context for LLM
-      const llmContext = getLLMContext()
+      const llmContext = getLLMContext();
       const enhancedPrompt = `You are a helpful AI assistant. Please respond in markdown format to make your responses well-structured and easy to read.
 
 ${llmContext ? `Previous conversation context:\n${llmContext}\n\n` : ''}User's latest message: ${userMessage}
@@ -406,39 +406,39 @@ Please provide a helpful response formatted in markdown. Use appropriate markdow
 - Headers for organizing information
 - Code blocks when sharing code examples
 
-Keep your response conversational and helpful.`
-      
-      console.log(`🤖 LLM Context (${messageQueue.length} messages):`, llmContext ? llmContext.substring(0, 200) + '...' : 'No context')
-      console.log(`🤖 Enhanced prompt:`, enhancedPrompt.substring(0, 300) + '...')
-      
+Keep your response conversational and helpful.`;
+
+      console.log(`🤖 LLM Context (${messageQueue.length} messages):`, llmContext ? `${llmContext.substring(0, 200)}...` : 'No context');
+      console.log('🤖 Enhanced prompt:', `${enhancedPrompt.substring(0, 300)}...`);
+
       // Stream the response
       await blink.ai.streamText(
         {
           prompt: enhancedPrompt,
           model: selectedModel,
-          maxTokens: 2000
+          maxTokens: 2000,
         },
         (chunk) => {
-          assistantContent += chunk
-          
+          assistantContent += chunk;
+
           // Update the message in real-time
-          setAllMessages(prev => 
-            prev.map(msg => 
-              msg.id === assistantMessageId 
+          setAllMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantMessageId
                 ? { ...msg, content: assistantContent }
-                : msg
-            )
-          )
-          setFilteredMessages(prev => 
-            prev.map(msg => 
-              msg.id === assistantMessageId 
+                : msg,
+            ),
+          );
+          setFilteredMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantMessageId
                 ? { ...msg, content: assistantContent }
-                : msg
-            )
-          )
-        }
-      )
-      
+                : msg,
+            ),
+          );
+        },
+      );
+
       // Save the final assistant message to database
       await blink.db.messages.create({
         id: assistantMessageId,
@@ -447,61 +447,61 @@ Keep your response conversational and helpful.`
         role: 'assistant',
         content: assistantContent,
         model: selectedModel,
-        createdAt: new Date().toISOString()
-      })
-      
+        createdAt: new Date().toISOString(),
+      });
+
       const finalAssistantMessage = {
         ...assistantMessage,
-        content: assistantContent
-      }
-      
+        content: assistantContent,
+      };
+
       // Update message queue with assistant message
-      updateMessageQueue(finalAssistantMessage)
-      
-      const updatedMessages = [...afterUserMessages, finalAssistantMessage]
+      updateMessageQueue(finalAssistantMessage);
+
+      const updatedMessages = [...afterUserMessages, finalAssistantMessage];
 
       // Update session
       await blink.db.chatSessions.update(session.id, {
         messageCount: session.messageCount + 2,
         model: selectedModel,
-        updatedAt: new Date().toISOString()
-      })
+        updatedAt: new Date().toISOString(),
+      });
 
-      setSession(prev => prev ? { 
-        ...prev, 
+      setSession(prev => prev ? {
+        ...prev,
         messageCount: prev.messageCount + 2,
         model: selectedModel,
-        updatedAt: new Date().toISOString()
-      } : null)
+        updatedAt: new Date().toISOString(),
+      } : null);
 
       // Smart bookmark generation: only create new bookmarks if needed, otherwise update existing ones
       try {
-        await generateBookmarksForChat(session.id, user.id, updatedMessages)
+        await generateBookmarksForChat(session.id, user.id, updatedMessages);
       } catch (error) {
-        console.error('Failed to auto-generate bookmarks:', error)
+        console.error('Failed to auto-generate bookmarks:', error);
       }
 
     } catch (error) {
-      console.error('Failed to send message:', error)
-      toast.error('Failed to send message. Please try again.')
+      console.error('Failed to send message:', error);
+      toast.error('Failed to send message. Please try again.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
+      e.preventDefault();
+      sendMessage();
     }
-  }
+  };
 
   const createBookmark = async (messageId: string, content: string) => {
     try {
       // Generate bookmark title from message content
-      const title = content.length > 30 
-        ? content.substring(0, 30) + '...'
-        : content
+      const title = content.length > 30
+        ? `${content.substring(0, 30)}...`
+        : content;
 
       await blink.db.bookmarks.create({
         id: `bookmark_${Date.now()}`,
@@ -510,22 +510,22 @@ Keep your response conversational and helpful.`
         title,
         description: content.substring(0, 100),
         messageIds: messageId, // Fixed: use messageIds (plural) to match database schema
-        createdAt: new Date().toISOString()
-      })
+        createdAt: new Date().toISOString(),
+      });
 
-      toast.success('Bookmark created!')
+      toast.success('Bookmark created!');
     } catch (error) {
-      console.error('Failed to create bookmark:', error)
-      toast.error('Failed to create bookmark')
+      console.error('Failed to create bookmark:', error);
+      toast.error('Failed to create bookmark');
     }
-  }
+  };
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
-  }
+    return new Date(dateString).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   if (!session) {
     return (
@@ -535,10 +535,10 @@ Keep your response conversational and helpful.`
           <p className="text-muted-foreground">Loading neural pathways...</p>
         </div>
       </div>
-    )
+    );
   }
 
-  const selectedModelInfo = LLM_MODELS.find(m => m.id === selectedModel)
+  const selectedModelInfo = LLM_MODELS.find(m => m.id === selectedModel);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -575,7 +575,7 @@ Keep your response conversational and helpful.`
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Select value={selectedModel} onValueChange={(value: LLMModel) => setSelectedModel(value)}>
             <SelectTrigger className="w-48 bg-white border-gray-300">
@@ -592,23 +592,23 @@ Keep your response conversational and helpful.`
               ))}
             </SelectContent>
           </Select>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="sm"
             onClick={() => navigate('/settings')}
             className="text-gray-700 hover:bg-gray-100"
           >
             <SettingsIcon className="w-4 h-4" />
           </Button>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="sm"
             onClick={async () => {
               try {
-                await blink.auth.logout()
-                navigate('/landing')
+                await blink.auth.logout();
+                navigate('/landing');
               } catch (error) {
-                console.error('Failed to logout:', error)
+                console.error('Failed to logout:', error);
               }
             }}
             className="text-red-600 hover:bg-red-50 hover:text-red-700"
@@ -631,7 +631,7 @@ Keep your response conversational and helpful.`
                 {bookmarkMessages.length} message{bookmarkMessages.length !== 1 ? 's' : ''}
               </Badge>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -642,11 +642,11 @@ Keep your response conversational and helpful.`
               >
                 <ChevronLeftIcon className="w-4 h-4" />
               </Button>
-              
+
               <span className="text-sm text-gray-600 min-w-[60px] text-center">
                 {bookmarkMessageIndex + 1} of {bookmarkMessages.length}
               </span>
-              
+
               <Button
                 variant="outline"
                 size="sm"
@@ -677,9 +677,9 @@ Keep your response conversational and helpful.`
           ) : (
             filteredMessages.map((message) => {
               // Check if this message is part of the current bookmark
-              const isBookmarkMessage = currentBookmark && bookmarkMessages.some(bm => bm.id === message.id)
-              const isCurrentBookmarkMessage = isBookmarkMessage && bookmarkMessages[bookmarkMessageIndex]?.id === message.id
-              
+              const isBookmarkMessage = currentBookmark && bookmarkMessages.some(bm => bm.id === message.id);
+              const isCurrentBookmarkMessage = isBookmarkMessage && bookmarkMessages[bookmarkMessageIndex]?.id === message.id;
+
               return (
                 <div
                   key={message.id}
@@ -691,26 +691,26 @@ Keep your response conversational and helpful.`
                       <BotIcon className="w-4 h-4 text-accent" />
                     </div>
                   )}
-                  
+
                   <div className={`max-w-2xl ${message.role === 'user' ? 'order-first' : ''}`}>
                     <Card className={`p-4 transition-all duration-200 ${
-                      message.role === 'user' 
-                        ? 'bg-accent text-accent-foreground ml-auto' 
+                      message.role === 'user'
+                        ? 'bg-accent text-accent-foreground ml-auto'
                         : 'bg-card border-border'
                     } ${
-                      isBookmarkMessage 
-                        ? 'ring-2 ring-black/20 shadow-lg shadow-black/10' 
+                      isBookmarkMessage
+                        ? 'ring-2 ring-black/20 shadow-lg shadow-black/10'
                         : ''
                     } ${
-                      isCurrentBookmarkMessage 
-                        ? 'ring-2 ring-accent/50 shadow-xl shadow-accent/20' 
+                      isCurrentBookmarkMessage
+                        ? 'ring-2 ring-accent/50 shadow-xl shadow-accent/20'
                         : ''
                     }`}>
                       <div className="prose prose-sm max-w-none dark:prose-invert">
                         {message.role === 'assistant' ? (
-                          <div 
+                          <div
                             className="whitespace-pre-wrap"
-                            dangerouslySetInnerHTML={{ 
+                            dangerouslySetInnerHTML={{
                               __html: message.content
                                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -722,14 +722,14 @@ Keep your response conversational and helpful.`
                                 .replace(/^(\d+)\. (.*$)/gm, '<li class="ml-4 list-decimal">$1. $2</li>')
                                 .replace(/\n\n/g, '</p><p>')
                                 .replace(/^/, '<p>')
-                                .replace(/$/, '</p>')
+                                .replace(/$/, '</p>'),
                             }}
                           />
                         ) : (
                           <p className="whitespace-pre-wrap">{message.content}</p>
                         )}
                       </div>
-                      
+
                       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
                         <span className="text-xs opacity-70">
                           {formatTime(message.createdAt)}
@@ -748,17 +748,17 @@ Keep your response conversational and helpful.`
                       </div>
                     </Card>
                   </div>
-                  
+
                   {message.role === 'user' && (
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-foreground/10 to-foreground/5 flex items-center justify-center flex-shrink-0">
                       <UserIcon className="w-4 h-4 text-foreground" />
                     </div>
                   )}
                 </div>
-              )
+              );
             })
           )}
-          
+
           {isLoading && (
             <div className="flex gap-4">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center">
@@ -776,7 +776,7 @@ Keep your response conversational and helpful.`
               </Card>
             </div>
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
@@ -805,7 +805,7 @@ Keep your response conversational and helpful.`
               </Button>
             </div>
           </div>
-          
+
           <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
             <span>Press Enter to send, Shift+Enter for new line</span>
             <span>Model: {selectedModelInfo?.name}</span>
@@ -813,5 +813,5 @@ Keep your response conversational and helpful.`
         </div>
       </div>
     </div>
-  )
+  );
 }

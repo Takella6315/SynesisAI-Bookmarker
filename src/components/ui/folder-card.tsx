@@ -1,15 +1,15 @@
-import { useState } from 'react'
-import { Card } from './card.tsx'
-import { Button } from './button.tsx'
-import { 
-  FolderIcon, 
+import { useState } from 'react';
+import { Card } from './card.tsx';
+import { Button } from './button.tsx';
+import {
+  FolderIcon,
   FolderOpenIcon,
   MessageSquareIcon,
   BookmarkIcon,
   ExternalLinkIcon,
-  ChevronRightIcon
-} from 'lucide-react'
-import { cn } from '../../lib/utils'
+  ChevronRightIcon,
+} from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 interface FolderCardProps {
   title: string
@@ -34,28 +34,28 @@ export function FolderCard({
   onOpen,
   onGoInto,
   className,
-  isBookmark = false
+  isBookmark = false,
 }: FolderCardProps) {
-  const [isHovered, setIsHovered] = useState(false)
+  const [isHovered, setIsHovered] = useState(false);
 
   const getIcon = () => {
     switch (icon) {
       case 'chat':
-        return <MessageSquareIcon className="w-6 h-6 text-accent" />
+        return <MessageSquareIcon className="w-6 h-6 text-accent" />;
       case 'bookmark':
-        return <BookmarkIcon className="w-5 h-5 text-accent" />
+        return <BookmarkIcon className="w-5 h-5 text-accent" />;
       default:
-        return <FolderIcon className="w-6 h-6 text-accent text-black" />
+        return <FolderIcon className="w-6 h-6 text-accent text-black" />;
     }
-  }
+  };
 
   return (
     <Card
       className={cn(
-        "folder-card p-6 cursor-pointer border-border backdrop-blur-sm transition-all duration-300 group",
-        "hover:shadow-lg hover:shadow-accent/10 hover:scale-[1.02]",
-        isBookmark && "bg-accent/5 border-accent/20",
-        className
+        'folder-card p-6 cursor-pointer border-border backdrop-blur-sm transition-all duration-300 group',
+        'hover:shadow-lg hover:shadow-accent/10 hover:scale-[1.02]',
+        isBookmark && 'bg-accent/5 border-accent/20',
+        className,
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -72,7 +72,7 @@ export function FolderCard({
             </div>
           )}
         </div>
-        
+
         {/* Content */}
         <div className="space-y-2">
           <h3 className="font-semibold text-foreground line-clamp-2">
@@ -94,7 +94,7 @@ export function FolderCard({
             </p>
           )}
         </div>
-        
+
         {/* Action Buttons */}
         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           {onOpen && (
@@ -102,8 +102,8 @@ export function FolderCard({
               variant="default"
               size="sm"
               onClick={(e) => {
-                e.stopPropagation()
-                onOpen()
+                e.stopPropagation();
+                onOpen();
               }}
               className="flex-1 bg-black border-accent/30 text-white"
             >
@@ -116,8 +116,8 @@ export function FolderCard({
               variant="outline"
               size="sm"
               onClick={(e) => {
-                e.stopPropagation()
-                onGoInto()
+                e.stopPropagation();
+                onGoInto();
               }}
               className="flex-1 bg-black border-accent/30 text-white"
             >
@@ -128,5 +128,5 @@ export function FolderCard({
         </div>
       </div>
     </Card>
-  )
+  );
 }

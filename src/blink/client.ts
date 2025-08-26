@@ -1,8 +1,8 @@
-import { createClient } from '@blinkdotnew/sdk'
+import { createClient } from '@blinkdotnew/sdk';
 
 export const blink = createClient({
   projectId: 'futuristic-llm-chat--looycqnn',
-  authRequired: false
-})
+  authRequired: false,
+});
 
-export default blink
+export default blink;

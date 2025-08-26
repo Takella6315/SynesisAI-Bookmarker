@@ -1,81 +1,81 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { 
-  FolderIcon, 
-  PlusIcon, 
-  SearchIcon, 
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import {
+  FolderIcon,
+  PlusIcon,
+  SearchIcon,
   BookmarkIcon,
   MessageSquareIcon,
   SettingsIcon,
-  LogOutIcon
-} from 'lucide-react'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
-import { ScrollArea } from '../ui/scroll-area'
-import { Separator } from '../ui/separator'
-import blink from '../../blink/client'
-import { ChatSession, Bookmark } from '../../types'
+  LogOutIcon,
+} from 'lucide-react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { ScrollArea } from '../ui/scroll-area';
+import { Separator } from '../ui/separator';
+import blink from '../../blink/client';
+import { ChatSession, Bookmark } from '../../types';
 
 interface SidebarProps {
   onNewChat: () => void
 }
 
 export default function Sidebar({ onNewChat }: SidebarProps) {
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [user, setUser] = useState(null)
-  const location = useLocation()
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [user, setUser] = useState(null);
+  const location = useLocation();
 
   const loadChatSessions = useCallback(async () => {
-    if (!user) return
+    if (!user) return;
     try {
       const sessions = await blink.db.chatSessions.list({
         where: { userId: user.id },
         orderBy: { updatedAt: 'desc' },
-        limit: 50
-      })
-      setChatSessions(sessions)
+        limit: 50,
+      });
+      setChatSessions(sessions);
     } catch (error) {
-      console.error('Failed to load chat sessions:', error)
+      console.error('Failed to load chat sessions:', error);
     }
-  }, [user])
+  }, [user]);
 
   const loadBookmarks = useCallback(async () => {
-    if (!user) return
+    if (!user) return;
     try {
       const bookmarkList = await blink.db.bookmarks.list({
         where: { userId: user.id },
         orderBy: { createdAt: 'desc' },
-        limit: 20
-      })
-      setBookmarks(bookmarkList)
+        limit: 20,
+      });
+      setBookmarks(bookmarkList);
     } catch (error) {
-      console.error('Failed to load bookmarks:', error)
+      console.error('Failed to load bookmarks:', error);
     }
-  }, [user])
+  }, [user]);
 
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state) => {
-      setUser(state.user)
-    })
-    return unsubscribe
-  }, [])
+      setUser(state.user);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (user) {
-      loadChatSessions()
-      loadBookmarks()
+      loadChatSessions();
+      loadBookmarks();
     }
-  }, [user, loadChatSessions, loadBookmarks])
+  }, [user, loadChatSessions, loadBookmarks]);
 
   const filteredSessions = chatSessions.filter(session =>
-    session.title.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+    session.title.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   const filteredBookmarks = bookmarks.filter(bookmark =>
-    bookmark.title.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+    bookmark.title.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   return (
     <div className="w-80 h-screen bg-card border-r border-border flex flex-col">
@@ -93,7 +93,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
             <PlusIcon className="w-4 h-4" />
           </Button>
         </div>
-        
+
         {/* Search */}
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -109,9 +109,9 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
       {/* Content */}
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-6">
-          
-          
-          
+
+
+
         </div>
       </ScrollArea>
 
@@ -131,15 +131,15 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => window.location.href = '/settings'}
             >
               <SettingsIcon className="w-4 h-4" />
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => blink.auth.logout()}
             >
@@ -149,5 +149,5 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

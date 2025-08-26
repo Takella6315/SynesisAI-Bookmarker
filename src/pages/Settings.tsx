@@ -1,102 +1,102 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeftIcon, UserIcon, MoonIcon, SunIcon, UploadIcon } from 'lucide-react'
-import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
-import { Switch } from '../components/ui/switch'
-import { Separator } from '../components/ui/separator'
-import { toast } from 'sonner'
-import { useTheme } from 'next-themes'
-import blink from '../blink/client'
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeftIcon, UserIcon, MoonIcon, SunIcon, UploadIcon } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
+import { Switch } from '../components/ui/switch';
+import { Separator } from '../components/ui/separator';
+import { toast } from 'sonner';
+import { useTheme } from 'next-themes';
+import blink from '../blink/client';
 
 export default function Settings() {
-  const navigate = useNavigate()
-  const { theme, setTheme } = useTheme()
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [displayName, setDisplayName] = useState('')
-  const [avatarUrl, setAvatarUrl] = useState('')
-  const [uploading, setUploading] = useState(false)
+  const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state) => {
-      setUser(state.user)
-      setLoading(state.isLoading)
+      setUser(state.user);
+      setLoading(state.isLoading);
       if (state.user) {
-        loadUserProfile(state.user.id)
+        loadUserProfile(state.user.id);
       }
-    })
-    return unsubscribe
-  }, [])
+    });
+    return unsubscribe;
+  }, []);
 
   const loadUserProfile = async (userId: string) => {
     try {
       const users = await blink.db.users.list({
-        where: { id: userId }
-      })
+        where: { id: userId },
+      });
       if (users.length > 0) {
-        const userProfile = users[0]
-        setDisplayName(userProfile.displayName || '')
-        setAvatarUrl(userProfile.avatarUrl || '')
+        const userProfile = users[0];
+        setDisplayName(userProfile.displayName || '');
+        setAvatarUrl(userProfile.avatarUrl || '');
       }
     } catch (error) {
-      console.error('Failed to load user profile:', error)
+      console.error('Failed to load user profile:', error);
     }
-  }
+  };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file || !user) return
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB')
-      return
+      toast.error('File size must be less than 5MB');
+      return;
     }
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file')
-      return
+      toast.error('Please select an image file');
+      return;
     }
 
-    setUploading(true)
+    setUploading(true);
     try {
       const { publicUrl } = await blink.storage.upload(
         file,
         `avatars/${user.id}/${file.name}`,
-        { upsert: true }
-      )
-      setAvatarUrl(publicUrl)
-      toast.success('Avatar uploaded successfully!')
+        { upsert: true },
+      );
+      setAvatarUrl(publicUrl);
+      toast.success('Avatar uploaded successfully!');
     } catch (error) {
-      console.error('Failed to upload avatar:', error)
-      toast.error('Failed to upload avatar')
+      console.error('Failed to upload avatar:', error);
+      toast.error('Failed to upload avatar');
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
   const saveProfile = async () => {
-    if (!user) return
+    if (!user) return;
 
-    setSaving(true)
+    setSaving(true);
     try {
       await blink.db.users.update(user.id, {
         displayName: displayName.trim() || user.email.split('@')[0],
         avatarUrl,
-        updatedAt: new Date().toISOString()
-      })
-      toast.success('Profile updated successfully!')
+        updatedAt: new Date().toISOString(),
+      });
+      toast.success('Profile updated successfully!');
     } catch (error) {
-      console.error('Failed to save profile:', error)
-      toast.error('Failed to save profile')
+      console.error('Failed to save profile:', error);
+      toast.error('Failed to save profile');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -106,12 +106,12 @@ export default function Settings() {
           <p className="text-muted-foreground">Loading settings...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!user) {
-    navigate('/')
-    return null
+    navigate('/');
+    return null;
   }
 
   return (
@@ -136,10 +136,10 @@ export default function Settings() {
               variant="outline"
               onClick={async () => {
                 try {
-                  await blink.auth.logout()
-                  navigate('/landing')
+                  await blink.auth.logout();
+                  navigate('/landing');
                 } catch (error) {
-                  console.error('Failed to logout:', error)
+                  console.error('Failed to logout:', error);
                 }
               }}
               className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
@@ -321,5 +321,5 @@ export default function Settings() {
         </div>
       </div>
     </div>
-  )
+  );
 }
