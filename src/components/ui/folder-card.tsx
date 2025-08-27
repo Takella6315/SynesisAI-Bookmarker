@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Card } from './card.tsx';
-import { Button } from './button.tsx';
+import { Card } from './card';
+import { Button } from './button';
 import {
   FolderIcon,
   FolderOpenIcon,

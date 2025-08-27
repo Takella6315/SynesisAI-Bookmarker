@@ -10,10 +10,10 @@ import {
   HomeIcon,
   ChevronRightIcon,
 } from 'lucide-react';
-import { Button } from '../components/ui/button.tsx';
-import { FolderCard } from '../components/ui/folder-card.tsx';
-import Sidebar from '../components/layout/Sidebar.tsx';
-import blink from '../blink/client.ts';
+import { Button } from '../components/ui/button';
+import { FolderCard } from '../components/ui/folder-card';
+import Sidebar from '../components/layout/Sidebar';
+import blink from '../blink/client';
 import { ChatSession, Bookmark, Message, FolderViewState } from '../types';
 import { LLM_MODELS } from '../constants/models';
 import { generateBookmarksForChat, generateChatSummary } from '../utils/bookmark-generator';
