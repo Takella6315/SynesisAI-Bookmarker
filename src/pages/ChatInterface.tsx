@@ -8,178 +8,58 @@ import {
   UserIcon,
   BotIcon,
   ChevronDownIcon,
-  FilterIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { Textarea } from '../components/ui/textarea';
-import { ScrollArea } from '../components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Card } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { toast } from 'sonner';
-import blink from '../blink/client';
-import { ChatSession, Message, LLMModel, Bookmark } from '../types';
-import { LLM_MODELS } from '../constants/models';
-import { generateBookmarksForChat } from '../utils/bookmark-generator';
+  FilterIcon
+} from 'lucide-react'
+import { Button } from '../components/ui/button'
+import { Textarea } from '../components/ui/textarea'
+import { ScrollArea } from '../components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
+import { Card } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
+import { toast } from 'sonner'
+import blink from '../blink/client'
+import { ChatSession, Message, LLMModel, Bookmark } from '../types'
+import { LLM_MODELS } from '../constants/models'
+import { generateBookmarksForChat } from '../utils/bookmark-generator'
 
 export default function ChatInterface() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [session, setSession] = useState<ChatSession | null>(null);
-  const [allMessages, setAllMessages] = useState<Message[]>([]);
-  const [filteredMessages, setFilteredMessages] = useState<Message[]>([]);
-  const [currentBookmark, setCurrentBookmark] = useState<Bookmark | null>(null);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState(null);
-  const [selectedModel, setSelectedModel] = useState<LLMModel>('gpt-4o-mini');
-  const [bookmarkMessageIndex, setBookmarkMessageIndex] = useState(0); // Track current position in bookmark messages
-  const [bookmarkMessages, setBookmarkMessages] = useState<Message[]>([]); // Store bookmark-specific messages
-  const [messageQueue, setMessageQueue] = useState<Message[]>([]); // Keep last 15 messages for LLM context
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const bookmarkId = searchParams.get('bookmark');
-  const focusMode = searchParams.get('focus') === 'true';
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [session, setSession] = useState<ChatSession | null>(null)
+  const [allMessages, setAllMessages] = useState<Message[]>([])
+  const [filteredMessages, setFilteredMessages] = useState<Message[]>([])
+  const [currentBookmark, setCurrentBookmark] = useState<Bookmark | null>(null)
+  const [inputValue, setInputValue] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [user, setUser] = useState(null)
+  const [selectedModel, setSelectedModel] = useState<LLMModel>('gpt-4o-mini')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const bookmarkId = searchParams.get('bookmark')
+  const focusMode = searchParams.get('focus') === 'true'
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const scrollToMessage = (messageId: string) => {
-    const messageElement = document.getElementById(`message-${messageId}`);
-    if (messageElement) {
-      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  };
-
-  const navigateBookmarkMessage = (direction: 'next' | 'prev') => {
-    if (bookmarkMessages.length === 0) return;
-
-    let newIndex = bookmarkMessageIndex;
-    if (direction === 'next') {
-      newIndex = Math.min(bookmarkMessageIndex + 1, bookmarkMessages.length - 1);
-    } else {
-      newIndex = Math.max(bookmarkMessageIndex - 1, 0);
-    }
-
-    setBookmarkMessageIndex(newIndex);
-    scrollToMessage(bookmarkMessages[newIndex].id);
-  };
-
-  const goToFirstBookmarkMessage = () => {
-    if (bookmarkMessages.length > 0) {
-      setBookmarkMessageIndex(0);
-      scrollToMessage(bookmarkMessages[0].id);
-    }
-  };
-
-  const updateBookmarkMessageIndex = () => {
-    if (!currentBookmark || bookmarkMessages.length === 0) return;
-
-    // Find which bookmark message is currently most visible
-    const messageElements = bookmarkMessages.map(msg => ({
-      id: msg.id,
-      element: document.getElementById(`message-${msg.id}`),
-    })).filter(item => item.element);
-
-    if (messageElements.length === 0) return;
-
-    // Find the message closest to the center of the viewport
-    const viewportCenter = window.innerHeight / 2;
-    let closestMessage = messageElements[0];
-    let closestDistance = Infinity;
-
-    messageElements.forEach(item => {
-      if (item.element) {
-        const rect = item.element.getBoundingClientRect();
-        const distance = Math.abs(rect.top + rect.height / 2 - viewportCenter);
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          closestMessage = item;
-        }
-      }
-    });
-
-    const newIndex = bookmarkMessages.findIndex(msg => msg.id === closestMessage.id);
-    if (newIndex !== -1 && newIndex !== bookmarkMessageIndex) {
-      setBookmarkMessageIndex(newIndex);
-    }
-  };
-
-  const updateMessageQueue = (newMessage: Message) => {
-    setMessageQueue(prev => {
-      const updated = [...prev, newMessage];
-      // Keep only the last 15 messages
-      return updated.slice(-15);
-    });
-  };
-
-  const getLLMContext = () => {
-    // Format the last 15 messages as context for the LLM
-    return messageQueue.map(msg =>
-      `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`,
-    ).join('\n\n');
-  };
-
   const getMessagesForBookmark = (bookmark: Bookmark, messages: Message[]) => {
     // If bookmark has specific message IDs, filter by those
     if (bookmark.messageIds) {
-      const messageIds = bookmark.messageIds.split(',');
-      const taggedMessages = messages.filter(msg => messageIds.includes(msg.id));
-
-      // For focus mode, we want to show conversation pairs
-      // Find all messages that are part of conversations with tagged messages
-      const conversationMessages: Message[] = [];
-
-      taggedMessages.forEach(taggedMsg => {
-        // Find the conversation pair for this tagged message
-        const msgIndex = messages.findIndex(msg => msg.id === taggedMsg.id);
-
-        if (msgIndex !== -1) {
-          // Add the tagged message
-          conversationMessages.push(taggedMsg);
-
-          // If it's a user message, add the next message (AI response) if it exists
-          if (taggedMsg.role === 'user' && msgIndex + 1 < messages.length) {
-            const nextMsg = messages[msgIndex + 1];
-            if (nextMsg.role === 'assistant') {
-              conversationMessages.push(nextMsg);
-            }
-          }
-
-          // If it's an AI message, add the previous message (user input) if it exists
-          if (taggedMsg.role === 'assistant' && msgIndex > 0) {
-            const prevMsg = messages[msgIndex - 1];
-            if (prevMsg.role === 'user') {
-              conversationMessages.push(prevMsg);
-            }
-          }
-        }
-      });
-
-      // Remove duplicates and sort by creation time
-      const uniqueMessages = conversationMessages.filter((msg, index, self) =>
-        index === self.findIndex(m => m.id === msg.id),
-      );
-
-      return uniqueMessages.sort((a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      );
+      const messageIds = bookmark.messageIds.split(',')
+      return messages.filter(msg => messageIds.includes(msg.id))
     }
-
-    // Otherwise, filter by category/topic keywords (fallback)
-    const keywords = bookmark.category?.toLowerCase().split(' ') || [];
-    if (keywords.length === 0) return messages;
-
-    return messages.filter(msg =>
-      keywords.some(keyword =>
-        msg.content.toLowerCase().includes(keyword),
-      ),
-    );
-  };
+    
+    // Otherwise, filter by category/topic keywords
+    const keywords = bookmark.category?.toLowerCase().split(' ') || []
+    if (keywords.length === 0) return messages
+    
+    return messages.filter(msg => 
+      keywords.some(keyword => 
+        msg.content.toLowerCase().includes(keyword)
+      )
+    )
+  }
 
   const loadChatSession = useCallback(async () => {
     if (!user || !id) return;
@@ -203,59 +83,32 @@ export default function ChatInterface() {
     try {
       const messageList = await blink.db.messages.list({
         where: { chatSessionId: id, userId: user.id },
-        orderBy: { createdAt: 'asc' },
-      });
-      setAllMessages(messageList);
-
-      // Initialize message queue with existing messages (last 15)
-      const initialQueue = messageList.slice(-15);
-      setMessageQueue(initialQueue);
-
+        orderBy: { createdAt: 'asc' }
+      })
+      setAllMessages(messageList)
+      
       // Load bookmark if specified
       if (bookmarkId) {
         const bookmarks = await blink.db.bookmarks.list({
           where: { id: bookmarkId, userId: user.id },
         });
         if (bookmarks.length > 0) {
-          const bookmark = bookmarks[0];
-          setCurrentBookmark(bookmark);
-
-          // Get messages for this bookmark (including conversation pairs)
-          const bookmarkMessageList = getMessagesForBookmark(bookmark, messageList);
-          setBookmarkMessages(bookmarkMessageList);
-          setBookmarkMessageIndex(0); // Start at first bookmark message
-
-          console.log(`📚 Bookmark "${bookmark.title}" processing:`, {
-            totalMessages: messageList.length,
-            taggedMessageIds: bookmark.messageIds?.split(',') || [],
-            bookmarkMessagesFound: bookmarkMessageList.length,
-            focusMode,
-            messages: bookmarkMessageList.map(m => ({ id: m.id, role: m.role, content: `${m.content.substring(0, 50)}...` })),
-          });
-
+          const bookmark = bookmarks[0]
+          setCurrentBookmark(bookmark)
+          
           if (focusMode) {
-            // Show only messages related to this bookmark (conversation pairs)
-            setFilteredMessages(bookmarkMessageList);
+            // Show only messages related to this bookmark
+            const bookmarkMessages = getMessagesForBookmark(bookmark, messageList)
+            setFilteredMessages(bookmarkMessages)
           } else {
             setFilteredMessages(messageList);
           }
-
-          // Auto-scroll to first bookmark message after a short delay
-          setTimeout(() => {
-            if (bookmarkMessageList.length > 0) {
-              scrollToMessage(bookmarkMessageList[0].id);
-            }
-          }, 100);
         } else {
-          setFilteredMessages(messageList);
-          setBookmarkMessages([]);
-          setBookmarkMessageIndex(0);
+          setFilteredMessages(messageList)
         }
       } else {
-        setCurrentBookmark(null);
-        setFilteredMessages(messageList);
-        setBookmarkMessages([]);
-        setBookmarkMessageIndex(0);
+        setCurrentBookmark(null)
+        setFilteredMessages(messageList)
       }
     } catch (error) {
       console.error('Failed to load messages:', error);
@@ -277,21 +130,9 @@ export default function ChatInterface() {
   }, [user, id, loadChatSession, loadMessages]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [filteredMessages]);
-
-  // Add scroll listener for bookmark navigation
-  useEffect(() => {
-    if (currentBookmark && bookmarkMessages.length > 0) {
-      const handleScroll = () => {
-        updateBookmarkMessageIndex();
-      };
-
-      window.addEventListener('scroll', handleScroll, { passive: true });
-      return () => window.removeEventListener('scroll', handleScroll);
-    }
-  }, [currentBookmark, bookmarkMessages, bookmarkMessageIndex]);
-
+    scrollToBottom()
+  }, [filteredMessages])
+  
   // Store user info when they first authenticate
   useEffect(() => {
     const storeUserInfo = async () => {
@@ -360,9 +201,6 @@ export default function ChatInterface() {
         createdAt: new Date().toISOString(),
       });
 
-      // Update message queue with user message
-      updateMessageQueue(userMessageObj);
-
       // Optimistically update UI
       const afterUserMessages = [...allMessages, userMessageObj];
       setAllMessages(afterUserMessages);
@@ -373,10 +211,10 @@ export default function ChatInterface() {
         await updateSessionTitle(userMessage);
       }
 
-      // Generate AI response with streaming and markdown formatting
-      let assistantContent = '';
-      const assistantMessageId = `msg_${Date.now()}_assistant`;
-
+      // Generate AI response with streaming
+      let assistantContent = ''
+      const assistantMessageId = `msg_${Date.now()}_assistant`
+      
       // Create placeholder assistant message
       const assistantMessage = {
         id: assistantMessageId,
@@ -389,32 +227,13 @@ export default function ChatInterface() {
       };
 
       // Add placeholder to UI
-      setAllMessages(prev => [...prev, assistantMessage]);
-      setFilteredMessages(prev => [...prev, assistantMessage]);
-
-      // Build context for LLM
-      const llmContext = getLLMContext();
-      const enhancedPrompt = `You are a helpful AI assistant. Please respond in markdown format to make your responses well-structured and easy to read.
-
-${llmContext ? `Previous conversation context:\n${llmContext}\n\n` : ''}User's latest message: ${userMessage}
-
-Please provide a helpful response formatted in markdown. Use appropriate markdown elements like:
-- **Bold** for emphasis
-- *Italic* for subtle emphasis  
-- \`code\` for technical terms
-- Lists for multiple points
-- Headers for organizing information
-- Code blocks when sharing code examples
-
-Keep your response conversational and helpful.`;
-
-      console.log(`🤖 LLM Context (${messageQueue.length} messages):`, llmContext ? `${llmContext.substring(0, 200)}...` : 'No context');
-      console.log('🤖 Enhanced prompt:', `${enhancedPrompt.substring(0, 300)}...`);
-
+      setAllMessages(prev => [...prev, assistantMessage])
+      setFilteredMessages(prev => [...prev, assistantMessage])
+      
       // Stream the response
       await blink.ai.streamText(
         {
-          prompt: enhancedPrompt,
+          prompt: userMessage,
           model: selectedModel,
           maxTokens: 2000,
         },
@@ -452,13 +271,10 @@ Keep your response conversational and helpful.`;
 
       const finalAssistantMessage = {
         ...assistantMessage,
-        content: assistantContent,
-      };
-
-      // Update message queue with assistant message
-      updateMessageQueue(finalAssistantMessage);
-
-      const updatedMessages = [...afterUserMessages, finalAssistantMessage];
+        content: assistantContent
+      }
+      
+      const updatedMessages = [...afterUserMessages, finalAssistantMessage]
 
       // Update session
       await blink.db.chatSessions.update(session.id, {
@@ -618,49 +434,6 @@ Keep your response conversational and helpful.`;
         </div>
       </div>
 
-      {/* Bookmark Navigation */}
-      {currentBookmark && bookmarkMessages.length > 0 && (
-        <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BookmarkIcon className="w-4 h-4 text-black" />
-              <span className="text-sm font-medium text-black">
-                {currentBookmark.title}
-              </span>
-              <Badge variant="secondary" className="text-xs bg-white text-gray-700 border-gray-200">
-                {bookmarkMessages.length} message{bookmarkMessages.length !== 1 ? 's' : ''}
-              </Badge>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateBookmarkMessage('prev')}
-                disabled={bookmarkMessageIndex === 0}
-                className="h-8 w-8 p-0 border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                <ChevronLeftIcon className="w-4 h-4" />
-              </Button>
-
-              <span className="text-sm text-gray-600 min-w-[60px] text-center">
-                {bookmarkMessageIndex + 1} of {bookmarkMessages.length}
-              </span>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateBookmarkMessage('next')}
-                disabled={bookmarkMessageIndex === bookmarkMessages.length - 1}
-                className="h-8 w-8 p-0 border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                <ChevronRightIcon className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Messages */}
       <ScrollArea className="flex-1 p-4">
         <div className="max-w-4xl mx-auto space-y-6">
@@ -675,88 +448,53 @@ Keep your response conversational and helpful.`;
               </p>
             </div>
           ) : (
-            filteredMessages.map((message) => {
-              // Check if this message is part of the current bookmark
-              const isBookmarkMessage = currentBookmark && bookmarkMessages.some(bm => bm.id === message.id);
-              const isCurrentBookmarkMessage = isBookmarkMessage && bookmarkMessages[bookmarkMessageIndex]?.id === message.id;
-
-              return (
-                <div
-                  key={message.id}
-                  id={`message-${message.id}`}
-                  className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  {message.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center flex-shrink-0">
-                      <BotIcon className="w-4 h-4 text-accent" />
-                    </div>
-                  )}
-
-                  <div className={`max-w-2xl ${message.role === 'user' ? 'order-first' : ''}`}>
-                    <Card className={`p-4 transition-all duration-200 ${
-                      message.role === 'user'
-                        ? 'bg-accent text-accent-foreground ml-auto'
-                        : 'bg-card border-border'
-                    } ${
-                      isBookmarkMessage
-                        ? 'ring-2 ring-black/20 shadow-lg shadow-black/10'
-                        : ''
-                    } ${
-                      isCurrentBookmarkMessage
-                        ? 'ring-2 ring-accent/50 shadow-xl shadow-accent/20'
-                        : ''
-                    }`}>
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
-                        {message.role === 'assistant' ? (
-                          <div
-                            className="whitespace-pre-wrap"
-                            dangerouslySetInnerHTML={{
-                              __html: message.content
-                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                                .replace(/`(.*?)`/g, '<code class="bg-muted px-1 py-0.5 rounded text-sm font-mono">$1</code>')
-                                .replace(/^### (.*$)/gm, '<h3 class="text-lg font-semibold mt-4 mb-2 text-foreground">$1</h3>')
-                                .replace(/^## (.*$)/gm, '<h2 class="text-xl font-semibold mt-4 mb-2 text-foreground">$1</h2>')
-                                .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mt-4 mb-2 text-foreground">$1</h1>')
-                                .replace(/^- (.*$)/gm, '<li class="ml-4 list-disc">$1</li>')
-                                .replace(/^(\d+)\. (.*$)/gm, '<li class="ml-4 list-decimal">$1. $2</li>')
-                                .replace(/\n\n/g, '</p><p>')
-                                .replace(/^/, '<p>')
-                                .replace(/$/, '</p>'),
-                            }}
-                          />
-                        ) : (
-                          <p className="whitespace-pre-wrap">{message.content}</p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
-                        <span className="text-xs opacity-70">
-                          {formatTime(message.createdAt)}
-                          {message.model && ` • ${LLM_MODELS.find(m => m.id === message.model)?.name}`}
-                        </span>
-                        {message.role === 'assistant' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => createBookmark(message.id, message.content)}
-                            className="opacity-70 hover:opacity-100"
-                          >
-                            <BookmarkIcon className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </Card>
+            filteredMessages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {message.role === 'assistant' && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center flex-shrink-0">
+                    <BotIcon className="w-4 h-4 text-accent" />
                   </div>
-
-                  {message.role === 'user' && (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-foreground/10 to-foreground/5 flex items-center justify-center flex-shrink-0">
-                      <UserIcon className="w-4 h-4 text-foreground" />
+                )}
+                
+                <div className={`max-w-2xl ${message.role === 'user' ? 'order-first' : ''}`}>
+                  <Card className={`p-4 ${
+                    message.role === 'user' 
+                      ? 'bg-accent text-accent-foreground ml-auto' 
+                      : 'bg-card border-border'
+                  }`}>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
-                  )}
+                    
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                      <span className="text-xs opacity-70">
+                        {formatTime(message.createdAt)}
+                        {message.model && ` • ${LLM_MODELS.find(m => m.id === message.model)?.name}`}
+                      </span>
+                      {message.role === 'assistant' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => createBookmark(message.id, message.content)}
+                          className="opacity-70 hover:opacity-100"
+                        >
+                          <BookmarkIcon className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
                 </div>
-              );
-            })
+                
+                {message.role === 'user' && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-foreground/10 to-foreground/5 flex items-center justify-center flex-shrink-0">
+                    <UserIcon className="w-4 h-4 text-foreground" />
+                  </div>
+                )}
+              </div>
+            ))
           )}
 
           {isLoading && (
