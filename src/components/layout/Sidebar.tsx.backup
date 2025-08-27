@@ -30,9 +30,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [folderItems, setFolderItems] = useState<FolderItem[]>([]);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set()
-  );
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [user, setUser] = useState<any>(null);
   const location = useLocation();
@@ -139,7 +137,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
           icon: "briefcase",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          itemCount: 3,
+          itemCount: 3
         },
         {
           id: "folder-2",
@@ -150,7 +148,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
           icon: "book",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          itemCount: 2,
+          itemCount: 2
         },
         {
           id: "folder-3",
@@ -160,7 +158,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
           icon: "user",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          itemCount: 1,
+          itemCount: 1
         },
         {
           id: "folder-4",
@@ -171,8 +169,8 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
           icon: "search",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          itemCount: 2,
-        },
+          itemCount: 2
+        }
       ];
       setFolders(mockFolders);
 
@@ -184,15 +182,15 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
           itemType: "chat",
           itemId: "1",
           order: 1,
-          createdAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
         },
         {
           id: "fi-2",
           folderId: "folder-2",
-          itemType: "chat",
+          itemType: "chat", 
           itemId: "2",
           order: 1,
-          createdAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
         },
         {
           id: "fi-3",
@@ -200,8 +198,8 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
           itemType: "bookmark",
           itemId: "1",
           order: 1,
-          createdAt: new Date().toISOString(),
-        },
+          createdAt: new Date().toISOString()
+        }
       ];
       setFolderItems(mockFolderItems);
     } catch (error) {
@@ -253,9 +251,11 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
     return groups;
   };
 
+  const groupedSessions = groupChatsByDate(filteredSessions);
+
   // Folder helper functions
   const toggleFolder = (folderId: string) => {
-    setExpandedFolders((prev) => {
+    setExpandedFolders(prev => {
       const newSet = new Set(prev);
       if (newSet.has(folderId)) {
         newSet.delete(folderId);
@@ -267,12 +267,10 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
   };
 
   const buildFolderTree = (folders: Folder[]): Folder[] => {
-    const folderMap = new Map(
-      folders.map((f) => [f.id, { ...f, children: [] as Folder[] }])
-    );
+    const folderMap = new Map(folders.map(f => [f.id, { ...f, children: [] as Folder[] }]));
     const rootFolders: Folder[] = [];
 
-    folders.forEach((folder) => {
+    folders.forEach(folder => {
       const folderWithChildren = folderMap.get(folder.id);
       if (folder.parentId && folderMap.has(folder.parentId)) {
         folderMap.get(folder.parentId)!.children!.push(folderWithChildren!);
@@ -284,14 +282,14 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
     return rootFolders;
   };
 
-  const getFolderItems = (folderId: string, type: "chat" | "bookmark") => {
+  const getFolderItems = (folderId: string, type: 'chat' | 'bookmark') => {
     const items = folderItems
-      .filter((fi) => fi.folderId === folderId && fi.itemType === type)
-      .map((fi) => {
-        if (type === "chat") {
-          return chatSessions.find((c) => c.id === fi.itemId);
+      .filter(fi => fi.folderId === folderId && fi.itemType === type)
+      .map(fi => {
+        if (type === 'chat') {
+          return chatSessions.find(c => c.id === fi.itemId);
         } else {
-          return bookmarks.find((b) => b.id === fi.itemId);
+          return bookmarks.find(b => b.id === fi.itemId);
         }
       })
       .filter(Boolean);
@@ -299,64 +297,43 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
   };
 
   const folderTree = buildFolderTree(
-    folders.filter((f) =>
-      f.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    folders.filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   // Get items that are not in any folder
-  const itemsInFolders = new Set(folderItems.map((fi) => fi.itemId));
-  const ungroupedSessions = filteredSessions.filter(
-    (session) => !itemsInFolders.has(session.id)
-  );
-  const ungroupedBookmarks = filteredBookmarks.filter(
-    (bookmark) => !itemsInFolders.has(bookmark.id)
-  );
+  const itemsInFolders = new Set(folderItems.map(fi => fi.itemId));
+  const ungroupedSessions = filteredSessions.filter(session => !itemsInFolders.has(session.id));
+  const ungroupedBookmarks = filteredBookmarks.filter(bookmark => !itemsInFolders.has(bookmark.id));
 
   // Folder component for recursive rendering
-  const FolderComponent = ({
-    folder,
-    level = 0,
-  }: {
-    folder: Folder & { children?: Folder[] };
-    level?: number;
-  }) => {
+  const FolderComponent = ({ folder, level = 0 }: { folder: Folder & { children?: Folder[] }, level?: number }) => {
     const isExpanded = expandedFolders.has(folder.id);
-    const folderChats = getFolderItems(folder.id, "chat") as ChatSession[];
-    const folderBookmarks = getFolderItems(folder.id, "bookmark") as Bookmark[];
+    const folderChats = getFolderItems(folder.id, 'chat') as ChatSession[];
+    const folderBookmarks = getFolderItems(folder.id, 'bookmark') as Bookmark[];
     const hasItems = folderChats.length > 0 || folderBookmarks.length > 0;
     const hasChildren = folder.children && folder.children.length > 0;
 
     return (
       <div key={folder.id} className="space-y-1">
         {/* Folder Header */}
-        <div
+        <div 
           className={`flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group`}
           style={{ paddingLeft: `${8 + level * 16}px` }}
           onClick={() => toggleFolder(folder.id)}
         >
           <div className="flex items-center gap-1">
-            {(hasChildren || hasItems) &&
-              (isExpanded ? (
-                <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
-              ) : (
+            {(hasChildren || hasItems) && (
+              isExpanded ? 
+                <ChevronDownIcon className="w-4 h-4 text-muted-foreground" /> :
                 <ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
-              ))}
-            {isExpanded ? (
-              <FolderOpenIcon
-                className="w-4 h-4"
-                style={{ color: folder.color }}
-              />
-            ) : (
-              <FolderIcon className="w-4 h-4" style={{ color: folder.color }} />
             )}
+            {isExpanded ? 
+              <FolderOpenIcon className="w-4 h-4" style={{ color: folder.color }} /> :
+              <FolderIcon className="w-4 h-4" style={{ color: folder.color }} />
+            }
           </div>
-          <span className="text-sm font-medium text-foreground flex-1">
-            {folder.name}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {folder.itemCount}
-          </span>
+          <span className="text-sm font-medium text-foreground flex-1">{folder.name}</span>
+          <span className="text-xs text-muted-foreground">{folder.itemCount}</span>
           <div className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               variant="ghost"
@@ -461,11 +438,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
 
             {/* Nested Folders */}
             {folder.children?.map((childFolder) => (
-              <FolderComponent
-                key={childFolder.id}
-                folder={childFolder}
-                level={level + 1}
-              />
+              <FolderComponent key={childFolder.id} folder={childFolder} level={level + 1} />
             ))}
           </div>
         )}
@@ -549,174 +522,150 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
                 {/* Today */}
                 {groupChatsByDate(ungroupedSessions).today.length > 0 && (
                   <div className="space-y-1">
-                    <h4 className="text-xs font-medium text-muted-foreground px-2 py-1">
-                      Today
-                    </h4>
-                    {groupChatsByDate(ungroupedSessions).today.map(
-                      (session) => (
-                        <Link
-                          key={session.id}
-                          to={`/chat/${session.id}`}
-                          className={`block w-full p-3 rounded-lg text-left hover:bg-accent/50 transition-colors group ${
-                            location.pathname === `/chat/${session.id}`
-                              ? "bg-accent/30 border border-accent/50"
-                              : "hover:bg-muted/50"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {session.title}
+                    <h4 className="text-xs font-medium text-muted-foreground px-2 py-1">Today</h4>
+                    {groupChatsByDate(ungroupedSessions).today.map((session) => (
+                      <Link
+                        key={session.id}
+                        to={`/chat/${session.id}`}
+                        className={`block w-full p-3 rounded-lg text-left hover:bg-accent/50 transition-colors group ${
+                          location.pathname === `/chat/${session.id}`
+                            ? "bg-accent/30 border border-accent/50"
+                            : "hover:bg-muted/50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {session.title}
+                            </p>
+                            {session.summary && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {session.summary}
                               </p>
-                              {session.summary && (
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {session.summary}
-                                </p>
-                              )}
-                              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                <span>{session.messageCount} messages</span>
-                                <span>•</span>
-                                <span>
-                                  {new Date(
-                                    session.updatedAt
-                                  ).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  // TODO: Add delete functionality
-                                }}
-                              >
-                                <TrashIcon className="w-3 h-3" />
-                              </Button>
+                            )}
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <span>{session.messageCount} messages</span>
+                              <span>•</span>
+                              <span>{new Date(session.updatedAt).toLocaleDateString()}</span>
                             </div>
                           </div>
-                        </Link>
-                      )
-                    )}
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                // TODO: Add delete functionality
+                              }}
+                            >
+                              <TrashIcon className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
                 )}
 
                 {/* Yesterday */}
                 {groupChatsByDate(ungroupedSessions).yesterday.length > 0 && (
                   <div className="space-y-1">
-                    <h4 className="text-xs font-medium text-muted-foreground px-2 py-1">
-                      Yesterday
-                    </h4>
-                    {groupChatsByDate(ungroupedSessions).yesterday.map(
-                      (session) => (
-                        <Link
-                          key={session.id}
-                          to={`/chat/${session.id}`}
-                          className={`block w-full p-3 rounded-lg text-left hover:bg-accent/50 transition-colors group ${
-                            location.pathname === `/chat/${session.id}`
-                              ? "bg-accent/30 border border-accent/50"
-                              : "hover:bg-muted/50"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {session.title}
+                    <h4 className="text-xs font-medium text-muted-foreground px-2 py-1">Yesterday</h4>
+                    {groupChatsByDate(ungroupedSessions).yesterday.map((session) => (
+                      <Link
+                        key={session.id}
+                        to={`/chat/${session.id}`}
+                        className={`block w-full p-3 rounded-lg text-left hover:bg-accent/50 transition-colors group ${
+                          location.pathname === `/chat/${session.id}`
+                            ? "bg-accent/30 border border-accent/50"
+                            : "hover:bg-muted/50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {session.title}
+                            </p>
+                            {session.summary && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {session.summary}
                               </p>
-                              {session.summary && (
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {session.summary}
-                                </p>
-                              )}
-                              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                <span>{session.messageCount} messages</span>
-                                <span>•</span>
-                                <span>
-                                  {new Date(
-                                    session.updatedAt
-                                  ).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  // TODO: Add delete functionality
-                                }}
-                              >
-                                <TrashIcon className="w-3 h-3" />
-                              </Button>
+                            )}
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <span>{session.messageCount} messages</span>
+                              <span>•</span>
+                              <span>{new Date(session.updatedAt).toLocaleDateString()}</span>
                             </div>
                           </div>
-                        </Link>
-                      )
-                    )}
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                // TODO: Add delete functionality
+                              }}
+                            >
+                              <TrashIcon className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
                 )}
 
                 {/* Older */}
                 {groupChatsByDate(ungroupedSessions).older.length > 0 && (
                   <div className="space-y-1">
-                    <h4 className="text-xs font-medium text-muted-foreground px-2 py-1">
-                      Previous 7 days
-                    </h4>
-                    {groupChatsByDate(ungroupedSessions).older.map(
-                      (session) => (
-                        <Link
-                          key={session.id}
-                          to={`/chat/${session.id}`}
-                          className={`block w-full p-3 rounded-lg text-left hover:bg-accent/50 transition-colors group ${
-                            location.pathname === `/chat/${session.id}`
-                              ? "bg-accent/30 border border-accent/50"
-                              : "hover:bg-muted/50"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {session.title}
+                    <h4 className="text-xs font-medium text-muted-foreground px-2 py-1">Previous 7 days</h4>
+                    {groupChatsByDate(ungroupedSessions).older.map((session) => (
+                      <Link
+                        key={session.id}
+                        to={`/chat/${session.id}`}
+                        className={`block w-full p-3 rounded-lg text-left hover:bg-accent/50 transition-colors group ${
+                          location.pathname === `/chat/${session.id}`
+                            ? "bg-accent/30 border border-accent/50"
+                            : "hover:bg-muted/50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {session.title}
+                            </p>
+                            {session.summary && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {session.summary}
                               </p>
-                              {session.summary && (
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {session.summary}
-                                </p>
-                              )}
-                              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                <span>{session.messageCount} messages</span>
-                                <span>•</span>
-                                <span>
-                                  {new Date(
-                                    session.updatedAt
-                                  ).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  // TODO: Add delete functionality
-                                }}
-                              >
-                                <TrashIcon className="w-3 h-3" />
-                              </Button>
+                            )}
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <span>{session.messageCount} messages</span>
+                              <span>•</span>
+                              <span>{new Date(session.updatedAt).toLocaleDateString()}</span>
                             </div>
                           </div>
-                        </Link>
-                      )
-                    )}
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                // TODO: Add delete functionality
+                              }}
+                            >
+                              <TrashIcon className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>
