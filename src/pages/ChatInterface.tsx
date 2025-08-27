@@ -11,7 +11,7 @@ import {
   FilterIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ClockIcon,
+  BookOpenIcon,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
@@ -840,9 +840,9 @@ Keep your response conversational and helpful.`;
             size="sm"
             onClick={() => setShowFloatingTimeline(!showFloatingTimeline)}
             className="text-gray-700 hover:bg-gray-100"
-            title="Show conversation timeline"
+            title="Show bookmark timeline"
           >
-            <ClockIcon className="w-4 h-4" />
+            <BookOpenIcon className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"
