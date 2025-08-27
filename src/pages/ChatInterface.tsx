@@ -83,7 +83,7 @@ export default function ChatInterface() {
   const scrollToMessage = (messageId: string) => {
     const messageElement = document.getElementById(`message-${messageId}`);
     if (messageElement) {
-      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      messageElement.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
@@ -377,7 +377,30 @@ export default function ChatInterface() {
     } catch (error) {
       console.error("Failed to load messages:", error);
     }
-  }, [user, id, bookmarkId, focusMode]);
+  }, [user, id, bookmarkId, focusMode]); // Function to regenerate enhanced bookmarks
+  const regenerateBookmarks = useCallback(
+    async (messages: Message[]) => {
+      if (!id || messages.length === 0) return;
+
+      console.log(`🔖 Regenerating bookmarks for ${messages.length} messages`);
+
+      try {
+        const enhancedBookmarkList = await generateEnhancedBookmarksForChat(
+          id,
+          messages
+        );
+        console.log(
+          `🔖 Generated ${enhancedBookmarkList.length} enhanced bookmarks:`,
+          enhancedBookmarkList.map((b) => b.title)
+        );
+        setEnhancedBookmarks(enhancedBookmarkList);
+      } catch (error) {
+        console.error("Failed to regenerate enhanced bookmarks:", error);
+        // Keep existing bookmarks on error
+      }
+    },
+    [id]
+  );
 
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state) => {
@@ -392,6 +415,26 @@ export default function ChatInterface() {
       loadMessages();
     }
   }, [user, id, loadChatSession, loadMessages]);
+
+  // Regenerate bookmarks when messages change (during active chat)
+  useEffect(() => {
+    if (allMessages.length > 0) {
+      regenerateBookmarks(allMessages);
+    }
+  }, [allMessages, regenerateBookmarks]);
+
+  // Auto-show floating timeline when bookmarks are available
+  useEffect(() => {
+    if (enhancedBookmarks.length > 0 && !showFloatingTimeline) {
+      // Only auto-show if we have a reasonable number of messages (more than just hello/intro)
+      if (allMessages.length >= 4) {
+        console.log(
+          `📍 Auto-showing timeline with ${enhancedBookmarks.length} bookmarks for ${allMessages.length} messages`
+        );
+        setShowFloatingTimeline(true);
+      }
+    }
+  }, [enhancedBookmarks, showFloatingTimeline, allMessages.length]);
 
   useEffect(() => {
     // Only auto-scroll to bottom if:

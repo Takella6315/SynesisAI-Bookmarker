@@ -627,6 +627,11 @@ export async function generateEnhancedBookmarksForChat(
   chatSessionId: string,
   messages: Message[]
 ): Promise<EnhancedBookmark[]> {
+  // Need at least 2 messages (user + assistant) to generate meaningful bookmarks
+  if (messages.length < 2) {
+    return [];
+  }
+
   // First detect topic segments
   const topicSegments = detectTopicSegments(messages);
 
