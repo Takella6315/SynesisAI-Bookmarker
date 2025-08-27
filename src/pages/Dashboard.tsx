@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FolderIcon,
-  MessageSquareIcon,
   PlusIcon,
   BookmarkIcon,
   SparklesIcon,
