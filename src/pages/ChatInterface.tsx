@@ -40,8 +40,8 @@ export default function ChatInterface() {
   const focusMode = searchParams.get('focus') === 'true'
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   const getMessagesForBookmark = (bookmark: Bookmark, messages: Message[]) => {
     // If bookmark has specific message IDs, filter by those
@@ -198,8 +198,8 @@ export default function ChatInterface() {
         userId: user.id,
         role: 'user',
         content: userMessage,
-        createdAt: new Date().toISOString(),
-      });
+        createdAt: new Date().toISOString()
+      })
 
       // Optimistically update UI
       const afterUserMessages = [...allMessages, userMessageObj];

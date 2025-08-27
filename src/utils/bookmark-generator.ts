@@ -1,5 +1,5 @@
-import blink from '../blink/client';
-import { Message, Bookmark } from '../types';
+import blink from '../blink/client'
+import { Message, Bookmark } from '../types'
 
 // Function to analyze chat messages and generate short keyword bookmarks (0-10 keywords)
 export async function generateBookmarksForChat(chatSessionId: string, userId: string, messages: Message[]): Promise<Bookmark[]> {
