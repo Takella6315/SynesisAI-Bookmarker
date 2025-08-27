@@ -32,6 +32,68 @@ function getConversationPairIds(messageIds: string[], allMessages: Message[]): s
   return conversationIds;
 }
 
+// Function to check if a message is already bookmarked
+function isMessageAlreadyBookmarked(messageId: string, existingBookmarks: Bookmark[]): boolean {
+  return existingBookmarks.some(bookmark => 
+    bookmark.messageIds && bookmark.messageIds.split(',').includes(messageId)
+  );
+}
+
+// Function to find the best existing bookmark for a new message
+function findBestBookmarkForMessage(messageContent: string, existingBookmarks: Bookmark[]): Bookmark | null {
+  const messageLower = messageContent.toLowerCase();
+  
+  // Find bookmarks that might be related to this message
+  const potentialMatches = existingBookmarks.filter(bookmark => {
+    const titleLower = bookmark.title.toLowerCase();
+    const descriptionLower = (bookmark.description || '').toLowerCase();
+    
+    // Check if the message content contains the bookmark title or vice versa
+    return messageLower.includes(titleLower) || titleLower.includes(messageLower) ||
+           messageLower.includes(descriptionLower) || descriptionLower.includes(messageLower);
+  });
+
+  if (potentialMatches.length === 0) return null;
+  
+  // Score potential matches based on relevance
+  const scoredMatches = potentialMatches.map(bookmark => {
+    const titleLower = bookmark.title.toLowerCase();
+    const descriptionLower = (bookmark.description || '').toLowerCase();
+    
+    let score = 0;
+    
+    // Exact title match gets highest score
+    if (messageLower.includes(titleLower)) score += 10;
+    if (titleLower.includes(messageLower)) score += 8;
+    
+    // Description matches get medium score
+    if (messageLower.includes(descriptionLower)) score += 5;
+    if (descriptionLower.includes(messageLower)) score += 4;
+    
+    // Partial word matches get lower scores
+    const messageWords = messageLower.split(/\s+/);
+    const titleWords = titleLower.split(/\s+/);
+    
+    messageWords.forEach(word => {
+      if (word.length > 2 && titleWords.some(titleWord => titleWord.includes(word) || word.includes(titleWord))) {
+        score += 2;
+      }
+    });
+    
+    return { bookmark, score };
+  });
+  
+  // Sort by score and return the best match
+  scoredMatches.sort((a, b) => b.score - a.score);
+  
+  // Only return if the score is above a threshold
+  if (scoredMatches[0].score >= 3) {
+    return scoredMatches[0].bookmark;
+  }
+  
+  return null;
+}
+
 // Function to analyze chat messages and generate short keyword bookmarks (0-10 keywords)
 export async function generateBookmarksForChat(chatSessionId: string, userId: string, messages: Message[]): Promise<Bookmark[]> {
   if (!messages || messages.length === 0) return [];
@@ -42,154 +104,126 @@ export async function generateBookmarksForChat(chatSessionId: string, userId: st
       where: { chatSessionId, userId },
     });
 
-    const existingTitles = existingBookmarks.map(b => b.title);
-
-    // Only analyze user messages for bookmark generation
+    // Only analyze user messages that aren't already bookmarked
     const userMessages = messages.filter(msg => msg.role === 'user');
-    if (userMessages.length === 0) return [];
+    const newUserMessages = userMessages.filter(msg => !isMessageAlreadyBookmarked(msg.id, existingBookmarks));
+    
+    if (newUserMessages.length === 0) {
+      console.log('📚 All messages already bookmarked, no new bookmarks needed');
+      return [];
+    }
 
-    // Combine user messages into a conversation context
-    const conversationText = userMessages.map(msg => `User: ${msg.content}`).join('\n\n');
-
-    // If there are no existing bookmarks at all, we still ask the AI for keywords.
-    // Build a prompt that includes existing bookmark titles so the AI can decide overlap.
-    const prompt = `You are an assistant that extracts concise topic keywords from a conversation.
-Given the conversation below, return between 0 and 10 short keywords or short phrases (1-3 words each) that best represent distinct topics discussed.
-Also consider the list of existing bookmark folder titles provided. For each keyword you return, indicate if it overlaps an existing bookmark title by returning the exact matching title, or null if it's a new topic.
-
-Return JSON only with a top-level key named "items" which is an array of objects with keys: "keyword" (string) and "match" (string|null).
-Do NOT return any extra explanation or text.
-
-Conversation:
-${conversationText}
-
-Existing bookmarks:
-${existingTitles.length ? existingTitles.join('\n') : '(none)'}
-
-Respond with JSON only.`;
-
-    const response = await blink.ai.generateObject({
-      prompt,
-      schema: {
-        type: 'object',
-        properties: {
-          items: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                keyword: { type: 'string' },
-                match: { type: ['string', 'null'] },
-              },
-              required: ['keyword'],
-            },
-          },
-        },
-        required: ['items'],
-      },
-    });
-
-    const items: Array<{ keyword: string; match?: string | null }> = (response?.object?.items || []);
+    console.log(`📚 Processing ${newUserMessages.length} new user messages for bookmark generation`);
 
     const createdOrUpdated: Bookmark[] = [];
 
-    for (const it of items) {
-      const rawKw = (it.keyword || '').trim();
-      if (!rawKw) continue;
-
-      const title = rawKw;
-
-      // Find user messages that mention the keyword (simple contains match)
-      const relevantMessages = userMessages.filter(msg => msg.content.toLowerCase().includes(rawKw.toLowerCase()));
-
-      // For each relevant user message, find its corresponding AI response to create conversation pairs
-      const conversationMessageIds: string[] = [];
-
-      relevantMessages.forEach(userMsg => {
-        // Find the index of this user message
-        const userMsgIndex = messages.findIndex(msg => msg.id === userMsg.id);
-        if (userMsgIndex !== -1) {
-          // Add the user message ID
-          conversationMessageIds.push(userMsg.id);
-
-          // Look for the AI response that follows this user message
-          if (userMsgIndex + 1 < messages.length) {
-            const nextMsg = messages[userMsgIndex + 1];
-            if (nextMsg.role === 'assistant') {
-              conversationMessageIds.push(nextMsg.id);
-              console.log(`📚 Added conversation pair: User "${userMsg.content.substring(0, 30)}..." + AI response`);
-            }
-          } else {
-            console.log(`📚 No AI response found for user message: "${userMsg.content.substring(0, 30)}..."`);
-          }
-        }
-      });
-
-      const newMessageIds = conversationMessageIds;
-      console.log(`📚 Created bookmark "${title}" with ${conversationMessageIds.length} message IDs:`, conversationMessageIds);
-
-      if (it.match) {
-        // AI says this overlaps an existing bookmark title - find it and merge message IDs
-        const existing = existingBookmarks.find(b => b.title.toLowerCase() === String(it.match).toLowerCase());
-        if (existing) {
-          const existingIds = (existing.messageIds || '').split(',').filter(Boolean);
-
-          // Get conversation pairs for new messages
-          const newConversationIds = getConversationPairIds(newMessageIds, messages);
-
-          const mergedIds = Array.from(new Set([...existingIds, ...newConversationIds]));
+    // Process each new user message individually
+    for (const newMessage of newUserMessages) {
+      console.log(`📚 Processing message: "${newMessage.content.substring(0, 50)}..."`);
+      
+      // Check if this message fits into an existing bookmark
+      const existingBookmark = findBestBookmarkForMessage(newMessage.content, existingBookmarks);
+      
+      if (existingBookmark) {
+        console.log(`📚 Found existing bookmark: "${existingBookmark.title}" for message`);
+        // Add this message to the existing bookmark
+        const existingIds = (existingBookmark.messageIds || '').split(',').filter(Boolean);
+        const conversationIds = getConversationPairIds([newMessage.id], messages);
+        
+        // Only add if not already present
+        const newIds = conversationIds.filter(id => !existingIds.includes(id));
+        if (newIds.length > 0) {
+          const mergedIds = [...existingIds, ...newIds];
+          
           try {
-            await blink.db.bookmarks.update(existing.id, {
+            await blink.db.bookmarks.update(existingBookmark.id, {
               messageIds: mergedIds.join(','),
             });
-            const updatedBookmark = { ...existing, messageIds: mergedIds.join(',') };
+            
+            const updatedBookmark = { ...existingBookmark, messageIds: mergedIds.join(',') };
             createdOrUpdated.push(updatedBookmark);
+            console.log(`📚 Added message to existing bookmark: "${existingBookmark.title}"`);
           } catch (err) {
-            console.error('Failed to update existing bookmark', existing.id, err);
+            console.error('Failed to update existing bookmark', existingBookmark.id, err);
           }
-          continue;
-        }
-      }
-
-      // If no match or matching bookmark not found, ensure we don't duplicate by title
-      const duplicate = existingBookmarks.find(b => b.title.toLowerCase() === title.toLowerCase());
-      if (duplicate) {
-        // Merge into duplicate
-        const existingIds = (duplicate.messageIds || '').split(',').filter(Boolean);
-
-        // Get conversation pairs for new messages
-        const newConversationIds = getConversationPairIds(newMessageIds, messages);
-
-        const mergedIds = Array.from(new Set([...existingIds, ...newConversationIds]));
-        try {
-          await blink.db.bookmarks.update(duplicate.id, {
-            messageIds: mergedIds.join(','),
-          });
-          const updatedBookmark = { ...duplicate, messageIds: mergedIds.join(',') };
-          createdOrUpdated.push(updatedBookmark);
-        } catch (err) {
-          console.error('Failed to update duplicate bookmark', duplicate.id, err);
+        } else {
+          console.log(`📚 Message already present in bookmark: "${existingBookmark.title}"`);
         }
         continue;
       }
 
-      // Otherwise create a new bookmark
+      console.log(`📚 No existing bookmark found, creating new one for message`);
+      // Generate a new bookmark for this message
+      const prompt = `You are an assistant that extracts a concise topic keyword from a single message.
+Given the message below, return a single short keyword or phrase (1-3 words) that best represents the topic discussed.
+Return JSON only with a top-level key named "keyword" (string).
+Do NOT return any extra explanation or text.
+
+Message:
+${newMessage.content}
+
+Respond with JSON only.`;
+
+      const response = await blink.ai.generateObject({
+        prompt,
+        schema: {
+          type: 'object',
+          properties: {
+            keyword: { type: 'string' },
+          },
+          required: ['keyword'],
+        },
+      });
+
+      const keyword = response?.object?.keyword?.trim();
+      if (!keyword) continue;
+
+      // Check if we already have a bookmark with this exact title
+      const duplicate = existingBookmarks.find(b => b.title.toLowerCase() === keyword.toLowerCase());
+      if (duplicate) {
+        // Merge into duplicate
+        const existingIds = (duplicate.messageIds || '').split(',').filter(Boolean);
+        const conversationIds = getConversationPairIds([newMessage.id], messages);
+        
+        // Only add if not already present
+        const newIds = conversationIds.filter(id => !existingIds.includes(id));
+        if (newIds.length > 0) {
+          const mergedIds = [...existingIds, ...newIds];
+          
+          try {
+            await blink.db.bookmarks.update(duplicate.id, {
+              messageIds: mergedIds.join(','),
+            });
+            
+            const updatedBookmark = { ...duplicate, messageIds: mergedIds.join(',') };
+            createdOrUpdated.push(updatedBookmark);
+            console.log(`📚 Merged message into existing bookmark: "${duplicate.title}"`);
+          } catch (err) {
+            console.error('Failed to update duplicate bookmark', duplicate.id, err);
+          }
+        }
+        continue;
+      }
+
+      // Create a new bookmark
+      const conversationIds = getConversationPairIds([newMessage.id], messages);
       const bookmark: Bookmark = {
         id: `bookmark_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         chatSessionId,
         userId,
-        title,
-        description: `Auto-generated topic: ${rawKw}`,
-        category: rawKw.toLowerCase().replace(/\s+/g, '_'),
-        messageIds: newMessageIds.join(','),
+        title: keyword,
+        description: `Auto-generated topic: ${keyword}`,
+        category: keyword.toLowerCase().replace(/\s+/g, '_'),
+        messageIds: conversationIds.join(','),
         createdAt: new Date().toISOString(),
       };
 
       try {
         await blink.db.bookmarks.create(bookmark);
         createdOrUpdated.push(bookmark);
+        console.log(`📚 Created new bookmark: "${keyword}" for message: "${newMessage.content.substring(0, 50)}..."`);
       } catch (err) {
-        console.error('Failed to save bookmark for keyword', rawKw, err);
+        console.error('Failed to save bookmark for keyword', keyword, err);
       }
     }
 
@@ -197,6 +231,61 @@ Respond with JSON only.`;
   } catch (error) {
     console.error('Failed to generate bookmarks:', error);
     return [];
+  }
+}
+
+// Function to clean up duplicate and overlapping bookmarks
+export async function cleanupBookmarks(chatSessionId: string, userId: string): Promise<void> {
+  try {
+    const existingBookmarks: Bookmark[] = await blink.db.bookmarks.list({
+      where: { chatSessionId, userId },
+    });
+
+    if (existingBookmarks.length <= 1) return;
+
+    console.log(`🧹 Cleaning up ${existingBookmarks.length} bookmarks for session ${chatSessionId}`);
+
+    // Group bookmarks by similar titles (case-insensitive)
+    const titleGroups = new Map<string, Bookmark[]>();
+    
+    existingBookmarks.forEach(bookmark => {
+      const titleLower = bookmark.title.toLowerCase();
+      if (!titleGroups.has(titleLower)) {
+        titleGroups.set(titleLower, []);
+      }
+      titleGroups.get(titleLower)!.push(bookmark);
+    });
+
+    // Merge bookmarks with identical titles
+    for (const [titleLower, bookmarks] of titleGroups) {
+      if (bookmarks.length > 1) {
+        console.log(`🧹 Merging ${bookmarks.length} bookmarks with title: "${titleLower}"`);
+        
+        // Keep the first bookmark and merge message IDs from others
+        const primaryBookmark = bookmarks[0];
+        const allMessageIds = new Set<string>();
+        
+        bookmarks.forEach(bookmark => {
+          if (bookmark.messageIds) {
+            bookmark.messageIds.split(',').filter(Boolean).forEach(id => allMessageIds.add(id));
+          }
+        });
+
+        // Update primary bookmark with merged message IDs
+        await blink.db.bookmarks.update(primaryBookmark.id, {
+          messageIds: Array.from(allMessageIds).join(','),
+        });
+
+        // Delete duplicate bookmarks
+        for (let i = 1; i < bookmarks.length; i++) {
+          await blink.db.bookmarks.delete(bookmarks[i].id);
+        }
+      }
+    }
+
+    console.log(`🧹 Cleanup completed for session ${chatSessionId}`);
+  } catch (error) {
+    console.error('Failed to cleanup bookmarks:', error);
   }
 }
 

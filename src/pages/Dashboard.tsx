@@ -14,7 +14,7 @@ import Sidebar from '../components/layout/Sidebar';
 import blink from '../blink/client';
 import { ChatSession, Bookmark, Message, FolderViewState } from '../types';
 import { LLM_MODELS } from '../constants/models';
-import { generateBookmarksForChat, generateChatSummary } from '../utils/bookmark-generator';
+import { generateBookmarksForChat, generateChatSummary, cleanupBookmarks } from '../utils/bookmark-generator';
 
 export default function Dashboard() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -47,6 +47,11 @@ export default function Dashboard() {
       setChatSessions(sessions);
       setBookmarks(bookmarkList);
       setMessages(messageList);
+
+      // Clean up any duplicate bookmarks that might exist
+      for (const session of sessions) {
+        await cleanupBookmarks(session.id, user.id);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -95,11 +100,33 @@ export default function Dashboard() {
 
   const generateBookmarksForSession = async (sessionId: string) => {
     const sessionMessages = messages.filter(msg => msg.chatSessionId === sessionId);
-    if (sessionMessages.length >= 4) {
+    const existingBookmarks = bookmarks.filter(b => b.chatSessionId === sessionId);
+    
+    // Only generate bookmarks if there are no existing bookmarks for this session
+    // and there are enough messages to warrant bookmarking
+    if (sessionMessages.length >= 4 && existingBookmarks.length === 0) {
+      console.log(`📚 Generating initial bookmarks for session ${sessionId} with ${sessionMessages.length} messages`);
       const newBookmarks = await generateBookmarksForChat(sessionId, user.id, sessionMessages);
       if (newBookmarks.length > 0) {
         setBookmarks(prev => [...prev, ...newBookmarks]);
       }
+    } else if (existingBookmarks.length > 0) {
+      console.log(`📚 Session ${sessionId} already has ${existingBookmarks.length} bookmarks, skipping generation`);
+    }
+  };
+
+  const cleanupSessionBookmarks = async (sessionId: string) => {
+    try {
+      await cleanupBookmarks(sessionId, user.id);
+      // Reload bookmarks after cleanup
+      const updatedBookmarks = await blink.db.bookmarks.list({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      setBookmarks(updatedBookmarks);
+      console.log(`🧹 Cleanup completed for session ${sessionId}`);
+    } catch (error) {
+      console.error('Failed to cleanup bookmarks for session:', sessionId, error);
     }
   };
 
