@@ -3,7 +3,7 @@ import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 import { useEffect, useState } from 'react';
 import blink from './blink/client';
-import LandingPage from './pages/LandingPage.tsx';
+import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import ChatInterface from './pages/ChatInterface';
 import Settings from './pages/Settings';

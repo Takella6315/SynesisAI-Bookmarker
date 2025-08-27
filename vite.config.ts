@@ -10,6 +10,11 @@ export default defineConfig({
     },
     extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json'],
   },
+  build: {
+    rollupOptions: {
+      external: [],
+    },
+  },
   server: {
     port: 3000,
     strictPort: true,
