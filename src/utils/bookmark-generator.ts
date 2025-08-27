@@ -1,5 +1,36 @@
-import blink from '../blink/client'
-import { Message, Bookmark } from '../types'
+import blink from '../blink/client';
+import { Message, Bookmark } from '../types';
+
+// Helper function to get conversation pair IDs for a list of message IDs
+function getConversationPairIds(messageIds: string[], allMessages: Message[]): string[] {
+  const conversationIds: string[] = [];
+
+  messageIds.forEach(msgId => {
+    const msgIndex = allMessages.findIndex(msg => msg.id === msgId);
+    if (msgIndex !== -1) {
+      const msg = allMessages[msgIndex];
+      conversationIds.push(msgId);
+
+      // If it's a user message, add the next message (AI response) if it exists
+      if (msg.role === 'user' && msgIndex + 1 < allMessages.length) {
+        const nextMsg = allMessages[msgIndex + 1];
+        if (nextMsg.role === 'assistant') {
+          conversationIds.push(nextMsg.id);
+        }
+      }
+
+      // If it's an AI message, add the previous message (user input) if it exists
+      if (msg.role === 'assistant' && msgIndex > 0) {
+        const prevMsg = allMessages[msgIndex - 1];
+        if (prevMsg.role === 'user') {
+          conversationIds.push(prevMsg.id);
+        }
+      }
+    }
+  });
+
+  return conversationIds;
+}
 
 // Function to analyze chat messages and generate short keyword bookmarks (0-10 keywords)
 export async function generateBookmarksForChat(chatSessionId: string, userId: string, messages: Message[]): Promise<Bookmark[]> {
@@ -69,15 +100,44 @@ Respond with JSON only.`;
       const title = rawKw;
 
       // Find user messages that mention the keyword (simple contains match)
-      const relevantMessages = userMessages.filter(msg => msg.content.toLowerCase().includes(rawKw.toLowerCase()))
-      const newMessageIds = relevantMessages.map(m => m.id)
+      const relevantMessages = userMessages.filter(msg => msg.content.toLowerCase().includes(rawKw.toLowerCase()));
+
+      // For each relevant user message, find its corresponding AI response to create conversation pairs
+      const conversationMessageIds: string[] = [];
+
+      relevantMessages.forEach(userMsg => {
+        // Find the index of this user message
+        const userMsgIndex = messages.findIndex(msg => msg.id === userMsg.id);
+        if (userMsgIndex !== -1) {
+          // Add the user message ID
+          conversationMessageIds.push(userMsg.id);
+
+          // Look for the AI response that follows this user message
+          if (userMsgIndex + 1 < messages.length) {
+            const nextMsg = messages[userMsgIndex + 1];
+            if (nextMsg.role === 'assistant') {
+              conversationMessageIds.push(nextMsg.id);
+              console.log(`📚 Added conversation pair: User "${userMsg.content.substring(0, 30)}..." + AI response`);
+            }
+          } else {
+            console.log(`📚 No AI response found for user message: "${userMsg.content.substring(0, 30)}..."`);
+          }
+        }
+      });
+
+      const newMessageIds = conversationMessageIds;
+      console.log(`📚 Created bookmark "${title}" with ${conversationMessageIds.length} message IDs:`, conversationMessageIds);
 
       if (it.match) {
         // AI says this overlaps an existing bookmark title - find it and merge message IDs
         const existing = existingBookmarks.find(b => b.title.toLowerCase() === String(it.match).toLowerCase());
         if (existing) {
-          const existingIds = (existing.messageIds || '').split(',').filter(Boolean)
-          const mergedIds = Array.from(new Set([...existingIds, ...newMessageIds]))
+          const existingIds = (existing.messageIds || '').split(',').filter(Boolean);
+
+          // Get conversation pairs for new messages
+          const newConversationIds = getConversationPairIds(newMessageIds, messages);
+
+          const mergedIds = Array.from(new Set([...existingIds, ...newConversationIds]));
           try {
             await blink.db.bookmarks.update(existing.id, {
               messageIds: mergedIds.join(','),
@@ -95,8 +155,12 @@ Respond with JSON only.`;
       const duplicate = existingBookmarks.find(b => b.title.toLowerCase() === title.toLowerCase());
       if (duplicate) {
         // Merge into duplicate
-        const existingIds = (duplicate.messageIds || '').split(',').filter(Boolean)
-        const mergedIds = Array.from(new Set([...existingIds, ...newMessageIds]))
+        const existingIds = (duplicate.messageIds || '').split(',').filter(Boolean);
+
+        // Get conversation pairs for new messages
+        const newConversationIds = getConversationPairIds(newMessageIds, messages);
+
+        const mergedIds = Array.from(new Set([...existingIds, ...newConversationIds]));
         try {
           await blink.db.bookmarks.update(duplicate.id, {
             messageIds: mergedIds.join(','),
