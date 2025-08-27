@@ -14,6 +14,11 @@ export default defineConfig({
     rollupOptions: {
       external: [],
     },
+    outDir: 'dist',
+  },
+  preview: {
+    port: 3000,
+    host: true,
   },
   server: {
     port: 3000,
