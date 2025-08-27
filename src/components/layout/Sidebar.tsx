@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   FolderIcon,
   PlusIcon,
@@ -8,22 +8,22 @@ import {
   MessageSquareIcon,
   SettingsIcon,
   LogOutIcon,
-} from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { ScrollArea } from '../ui/scroll-area';
-import { Separator } from '../ui/separator';
-import blink from '../../blink/client';
-import { ChatSession, Bookmark } from '../../types';
+} from "lucide-react";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { ScrollArea } from "../ui/scroll-area";
+import { Separator } from "../ui/separator";
+import blink from "../../blink/client";
+import { ChatSession, Bookmark } from "../../types";
 
 interface SidebarProps {
-  onNewChat: () => void
+  onNewChat: () => void;
 }
 
 export default function Sidebar({ onNewChat }: SidebarProps) {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [user, setUser] = useState(null);
   const location = useLocation();
 
@@ -32,12 +32,12 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
     try {
       const sessions = await blink.db.chatSessions.list({
         where: { userId: user.id },
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { updatedAt: "desc" },
         limit: 50,
       });
       setChatSessions(sessions);
     } catch (error) {
-      console.error('Failed to load chat sessions:', error);
+      console.error("Failed to load chat sessions:", error);
     }
   }, [user]);
 
@@ -46,12 +46,12 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
     try {
       const bookmarkList = await blink.db.bookmarks.list({
         where: { userId: user.id },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         limit: 20,
       });
       setBookmarks(bookmarkList);
     } catch (error) {
-      console.error('Failed to load bookmarks:', error);
+      console.error("Failed to load bookmarks:", error);
     }
   }, [user]);
 
@@ -69,12 +69,12 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
     }
   }, [user, loadChatSessions, loadBookmarks]);
 
-  const filteredSessions = chatSessions.filter(session =>
-    session.title.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredSessions = chatSessions.filter((session) =>
+    session.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredBookmarks = bookmarks.filter(bookmark =>
-    bookmark.title.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredBookmarks = bookmarks.filter((bookmark) =>
+    bookmark.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -82,7 +82,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
       {/* Header */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-accent bg-clip-text text-transparent">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-accent bg-clip-text">
             Neural Chat
           </h1>
           <Button
@@ -108,11 +108,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
 
       {/* Content */}
       <ScrollArea className="flex-1 p-4">
-        <div className="space-y-6">
-
-
-
-        </div>
+        <div className="space-y-6"></div>
       </ScrollArea>
 
       {/* Footer */}
@@ -134,7 +130,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => window.location.href = '/settings'}
+              onClick={() => (window.location.href = "/settings")}
             >
               <SettingsIcon className="w-4 h-4" />
             </Button>
