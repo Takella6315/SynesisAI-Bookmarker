@@ -75,21 +75,21 @@ export function FolderCard({
 
         {/* Content */}
         <div className="space-y-2">
-          <h3 className="font-semibold text-foreground line-clamp-2">
+          <h3 className="font-semibold text-foreground line-clamp-2 font-sans">
             {title}
           </h3>
           {subtitle && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground font-sans">
               {subtitle}
             </p>
           )}
           {description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">
+            <p className="text-xs text-muted-foreground line-clamp-2 font-sans">
               {description}
             </p>
           )}
           {messageCount !== undefined && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground font-sans">
               {messageCount} messages
             </p>
           )}

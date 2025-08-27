@@ -876,7 +876,7 @@ Keep your response conversational and helpful.`;
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BookmarkIcon className="w-4 h-4 text-black" />
-              <span className="text-sm font-medium text-black">
+              <span className="text-sm font-medium text-black font-sans">
                 {currentBookmark.title}
               </span>
               <Badge
@@ -925,10 +925,10 @@ Keep your response conversational and helpful.`;
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center mx-auto mb-4 animate-float">
                 <BotIcon className="w-8 h-8 text-accent" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">
+              <h3 className="text-lg font-semibold mb-2 font-sans">
                 Start a conversation
               </h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground font-sans">
                 Ask me anything. I'm powered by {selectedModelInfo?.name}.
               </p>
             </div>

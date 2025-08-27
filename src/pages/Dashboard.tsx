@@ -253,8 +253,8 @@ export default function Dashboard() {
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center mx-auto mb-4">
             <BookmarkIcon className="w-8 h-8 text-accent" />
           </div>
-          <h3 className="text-lg font-semibold mb-2">No bookmarks yet</h3>
-          <p className="text-muted-foreground mb-4">
+          <h3 className="text-lg font-semibold mb-2 font-sans">No bookmarks yet</h3>
+          <p className="text-muted-foreground mb-4 font-sans">
             Bookmarks will be automatically generated as you chat more.
           </p>
           <Button
@@ -294,10 +294,10 @@ export default function Dashboard() {
         <div className="p-8 border-b border-gray-200 bg-white">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-black">
+              <h1 className="text-3xl font-bold text-black font-sans tracking-tight">
                 Neural File System
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-gray-600 mt-1 font-sans">
                 Your AI conversations, organized like folders
               </p>
             </div>
@@ -348,8 +348,8 @@ export default function Dashboard() {
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center mb-6 animate-float">
                 <SparklesIcon className="w-12 h-12 text-accent" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Welcome to Neural Chat</h2>
-              <p className="text-muted-foreground mb-6">
+              <h2 className="text-2xl font-bold mb-2 font-sans tracking-tight">Welcome to Neural Chat</h2>
+              <p className="text-muted-foreground mb-6 font-sans">
                 Start your first conversation with AI. Each chat becomes a folder with automatically generated bookmarks.
               </p>
               <Button

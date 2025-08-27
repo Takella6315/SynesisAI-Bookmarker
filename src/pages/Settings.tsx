@@ -129,7 +129,7 @@ export default function Settings() {
               <ArrowLeftIcon className="w-4 h-4" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-black">Settings</h1>
+              <h1 className="text-2xl font-bold text-black font-sans tracking-tight">Settings</h1>
               <p className="text-sm text-gray-600">Manage your account and preferences</p>
             </div>
             <Button
@@ -170,9 +170,9 @@ export default function Settings() {
                 <div className="relative">
                   <Avatar className="w-20 h-20">
                     <AvatarImage src={avatarUrl} alt="Profile" />
-                    <AvatarFallback className="bg-gradient-to-br from-accent/20 to-accent/10 text-accent text-xl font-semibold">
-                      {(displayName || user.email)[0]?.toUpperCase()}
-                    </AvatarFallback>
+                                    <AvatarFallback className="bg-gradient-to-br from-accent/20 to-accent/10 text-accent text-xl font-semibold font-sans">
+                  {(displayName || user.email)[0]?.toUpperCase()}
+                </AvatarFallback>
                   </Avatar>
                   <label className="absolute -bottom-2 -right-2 cursor-pointer">
                     <div className="w-8 h-8 bg-accent hover:bg-accent/90 rounded-full flex items-center justify-center transition-colors">

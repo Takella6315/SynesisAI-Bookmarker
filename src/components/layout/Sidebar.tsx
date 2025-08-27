@@ -478,7 +478,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
       {/* Header */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-accent bg-clip-text">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-accent bg-clip-text font-sans tracking-tight">
             Neural Chat
           </h1>
           <Button

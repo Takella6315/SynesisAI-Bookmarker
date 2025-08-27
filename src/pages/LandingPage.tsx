@@ -38,21 +38,11 @@ export default function LandingPage() {
           <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
             <BrainIcon className="w-5 h-5 text-white" />
           </div>
-          <span className="text-xl font-semibold text-black">SynesisAI</span>
+          <span className="text-xl font-semibold text-black font-sans">SynesisAI</span>
         </div>
 
         <div className="flex items-center gap-8">
-          <a href="#" className="text-gray-600 hover:text-black transition-colors">Pricing</a>
-          <a href="#" className="text-gray-600 hover:text-black transition-colors">Resources</a>
-          <a href="#" className="text-gray-600 hover:text-black transition-colors">Blog</a>
-          <a href="#" className="text-gray-600 hover:text-black transition-colors">Docs</a>
-          <Button
-            onClick={handleGetStarted}
-            variant="ghost"
-            className="text-gray-600 hover:text-black hover:bg-transparent"
-          >
-            Sign In
-          </Button>
+          <a href="/contact" className="text-gray-600 hover:text-black transition-colors">Contact Us</a>
           <Button
             onClick={handleGetStarted}
             className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200"
@@ -67,16 +57,16 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
           {/* Left Side - Content */}
           <div className="space-y-8">
-            <h1 className="text-6xl lg:text-7xl font-bold text-black leading-tight">
+            <h1 className="text-6xl lg:text-7xl font-bold text-black leading-tight font-sans tracking-tight">
               The AI Conversation
               <br />
               <span className="text-black">Organizer</span>
             </h1>
 
             <div className="space-y-4">
-              <div className="text-xl font-semibold text-black">ORGANIZE 3X FASTER</div>
-              <div className="text-xl font-semibold text-black">100% CONVERSATION CONTEXT</div>
-              <div className="text-xl font-semibold text-black">SMART BOOKMARKING</div>
+              <div className="text-xl font-semibold text-black font-sans tracking-wide">ORGANIZE 3X FASTER</div>
+              <div className="text-xl font-semibold text-black font-sans tracking-wide">100% CONVERSATION CONTEXT</div>
+              <div className="text-xl font-semibold text-black font-sans tracking-wide">SMART BOOKMARKING</div>
             </div>
 
             <div className="space-y-4">
@@ -92,7 +82,7 @@ export default function LandingPage() {
               </Button>
 
               <p className="text-gray-600 text-sm">
-                no credit card required • 14-day free trial
+                No Payment Required
               </p>
             </div>
           </div>
@@ -136,18 +126,18 @@ export default function LandingPage() {
       {/* Partner Section */}
       <div className="relative z-10 px-8 pb-20">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-gray-600 mb-8">
+          {/* <p className="text-gray-600 mb-8">
             1000+ DEVELOPERS USE SYNESISAI TO ORGANIZE FASTER. SEE WHY TEAMS CHOOSE SYNESISAI →
-          </p>
+          </p> */}
 
           {/* Partner logos placeholder */}
-          <div className="grid grid-cols-5 gap-8 opacity-40">
+          {/* <div className="grid grid-cols-5 gap-8 opacity-40">
             {['Brex', 'Substack', 'BILT', 'Podium', 'PostHog'].map((company) => (
               <div key={company} className="text-gray-400 font-medium text-sm">
                 {company}
               </div>
             ))}
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import ChatInterface from './pages/ChatInterface';
 import Settings from './pages/Settings';
+import ContactPage from './pages/ContactPage';
 import './App.css';
 
 function App() {
@@ -76,6 +77,7 @@ function App() {
             <Route path="/dashboard" element={user ? <Dashboard /> : <LandingPage />} />
             <Route path="/chat/:id" element={user ? <ChatInterface /> : <LandingPage />} />
             <Route path="/settings" element={user ? <Settings /> : <LandingPage />} />
+            <Route path="/contact" element={<ContactPage />} />
           </Routes>
         </div>
       </Router>
