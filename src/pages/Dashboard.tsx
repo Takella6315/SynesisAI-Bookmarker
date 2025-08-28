@@ -9,6 +9,16 @@ import {
   ChevronRightIcon,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 import { FolderCard } from '../components/ui/folder-card';
 import Sidebar from '../components/layout/Sidebar';
 import MindMapDialog from '../components/ui/MindMapDialog';
@@ -25,6 +35,7 @@ export default function Dashboard() {
   const [viewState, setViewState] = useState<FolderViewState>({ type: 'chats' });
   const [isLoading, setIsLoading] = useState(false);
   const [showMindMap, setShowMindMap] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<ChatSession | null>(null);
   const navigate = useNavigate();
 
   const loadData = useCallback(async () => {
@@ -32,16 +43,16 @@ export default function Dashboard() {
     setIsLoading(true);
     try {
       const [sessions, bookmarkList, messageList] = await Promise.all([
-        blink.db.chatSessions.list({
+        (blink.db as any).chatSessions.list({
           where: { userId: user.id },
           orderBy: { updatedAt: 'desc' },
           limit: 50,
         }),
-        blink.db.bookmarks.list({
+        (blink.db as any).bookmarks.list({
           where: { userId: user.id },
           orderBy: { createdAt: 'desc' },
         }),
-        blink.db.messages.list({
+        (blink.db as any).messages.list({
           where: { userId: user.id },
           orderBy: { createdAt: 'asc' },
         }),
@@ -76,7 +87,7 @@ export default function Dashboard() {
 
   const createNewChat = async () => {
     try {
-      const newSession = await blink.db.chatSessions.create({
+      const newSession = await (blink.db as any).chatSessions.create({
         id: `chat_${Date.now()}`,
         userId: user.id,
         title: 'New Chat',
@@ -121,7 +132,7 @@ export default function Dashboard() {
     try {
       await cleanupBookmarks(sessionId, user.id);
       // Reload bookmarks after cleanup
-      const updatedBookmarks = await blink.db.bookmarks.list({
+      const updatedBookmarks = await (blink.db as any).bookmarks.list({
         where: { userId: user.id },
         orderBy: { createdAt: 'desc' },
       });
@@ -138,6 +149,32 @@ export default function Dashboard() {
 
   const handleMindMapBookmarkClick = (bookmarkId: string, chatId: string) => {
     navigate(`/chat/${chatId}?bookmark=${bookmarkId}`);
+  };
+
+  const deleteChat = async (session: ChatSession) => {
+    try {
+      // Delete related bookmarks and messages first (best-effort)
+      const [sessionBookmarks, sessionMessages] = await Promise.all([
+        (blink.db as any).bookmarks.list({ where: { chatSessionId: session.id, userId: user.id } }),
+        (blink.db as any).messages.list({ where: { chatSessionId: session.id, userId: user.id } }),
+      ]);
+
+      await Promise.all([
+        ...sessionBookmarks.map((b: any) => (blink.db as any).bookmarks.delete(b.id)),
+        ...sessionMessages.map((m: any) => (blink.db as any).messages.delete(m.id)),
+      ]);
+
+      // Delete the chat session itself
+      await (blink.db as any).chatSessions.delete(session.id);
+
+      // Update local state
+      setChatSessions((prev) => prev.filter((s) => s.id !== session.id));
+      setBookmarks((prev) => prev.filter((b) => b.chatSessionId !== session.id));
+      setMessages((prev) => prev.filter((m) => m.chatSessionId !== session.id));
+      setConfirmDelete(null);
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -246,7 +283,8 @@ export default function Dashboard() {
                 messageCount={session.messageCount}
                 timestamp={formatDate(session.updatedAt)}
                 onOpen={() => handleOpenChat(session.id)}
-                onGoInto={chatBookmarks.length > 0 ? () => handleGoIntoChat(session) : undefined}
+                onGoInto={() => handleGoIntoChat(session)}
+                onDelete={() => setConfirmDelete(session)}
               />
             );
           })}
@@ -385,6 +423,24 @@ export default function Dashboard() {
         onChatClick={handleMindMapChatClick}
         onBookmarkClick={handleMindMapBookmarkClick}
       />
+
+      {/* Confirm Delete Dialog */}
+      <AlertDialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the chat and all its messages and bookmarks. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmDelete && deleteChat(confirmDelete)} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
