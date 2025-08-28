@@ -399,85 +399,96 @@ export async function generateBookmarksForChat(
       where: { chatSessionId, userId },
     });
 
-    // Get all message IDs that are already bookmarked
-    const alreadyBookmarkedMessageIds = new Set<string>();
-    existingBookmarks.forEach((bookmark) => {
-      if (bookmark.messageIds) {
-        bookmark.messageIds.split(",").forEach((id) => {
-          alreadyBookmarkedMessageIds.add(id.trim());
-        });
-      }
-    });
-
     // Only analyze user messages that aren't already bookmarked
     const userMessages = messages.filter((msg) => msg.role === "user");
-    const unbookmarkedUserMessages = userMessages.filter(
-      (msg) => !alreadyBookmarkedMessageIds.has(msg.id)
+    const newUserMessages = userMessages.filter(
+      (msg) => !isMessageAlreadyBookmarked(msg.id, existingBookmarks)
     );
 
-    if (unbookmarkedUserMessages.length === 0) {
+    if (newUserMessages.length === 0) {
       console.log(
-        "📚 All relevant messages already bookmarked, no new bookmarks needed"
+        "📚 All messages already bookmarked, no new bookmarks needed"
       );
       return [];
     }
 
     console.log(
-      `📚 Processing ${unbookmarkedUserMessages.length} unbookmarked user messages for potential bookmark generation`
+      `📚 Processing ${newUserMessages.length} new user messages for bookmark generation`
     );
 
     const createdOrUpdated: Bookmark[] = [];
 
-    // Only create bookmarks for messages that are worth bookmarking
-    // Filter to only significant messages (questions, long content, technical discussions)
-    const significantMessages = unbookmarkedUserMessages.filter((msg) => {
-      const content = msg.content.trim();
-      
-      // Skip very short messages (likely just confirmations or simple responses)
-      if (content.length < 20) return false;
-      
-      // Skip common filler messages
-      const lowerContent = content.toLowerCase();
-      const fillerPatterns = [
-        /^(ok|okay|yes|no|sure|thanks|thank you)$/i,
-        /^(got it|understood|makes sense|perfect)$/i,
-        /^(hi|hello|hey)$/i
-      ];
-      
-      if (fillerPatterns.some(pattern => pattern.test(content))) return false;
-      
-      // Include messages that are questions, technical content, or substantial discussions
-      return (
-        content.includes("?") || // Questions
-        content.length > 100 || // Substantial content
-        content.includes("```") || // Code blocks
-        lowerContent.includes("how") ||
-        lowerContent.includes("what") ||
-        lowerContent.includes("why") ||
-        lowerContent.includes("explain") ||
-        lowerContent.includes("problem") ||
-        lowerContent.includes("issue")
-      );
-    });
-
-    console.log(
-      `📚 Found ${significantMessages.length} significant messages worth bookmarking`
-    );
-
-    // Process each significant message individually (no more merging into existing bookmarks)
-    for (const message of significantMessages) {
+    // Process each new user message individually
+    for (const newMessage of newUserMessages) {
       console.log(
-        `📚 Creating bookmark for message: "${message.content.substring(0, 50)}..."`
+        `📚 Processing message: "${newMessage.content.substring(0, 50)}..."`
       );
 
-      // Generate a new bookmark for this specific message only
+      // Check if this message fits into an existing bookmark
+      const existingBookmark = findBestBookmarkForMessage(
+        newMessage.content,
+        existingBookmarks
+      );
+
+      if (existingBookmark) {
+        console.log(
+          `📚 Found existing bookmark: "${existingBookmark.title}" for message`
+        );
+        // Add this message to the existing bookmark
+        const existingIds = (existingBookmark.messageIds || "")
+          .split(",")
+          .filter(Boolean);
+        const conversationIds = getConversationPairIds(
+          [newMessage.id],
+          messages
+        );
+
+        // Only add if not already present
+        const newIds = conversationIds.filter(
+          (id) => !existingIds.includes(id)
+        );
+        if (newIds.length > 0) {
+          const mergedIds = [...existingIds, ...newIds];
+
+          try {
+            await blink.db.bookmarks.update(existingBookmark.id, {
+              messageIds: mergedIds.join(","),
+            });
+
+            const updatedBookmark = {
+              ...existingBookmark,
+              messageIds: mergedIds.join(","),
+            };
+            createdOrUpdated.push(updatedBookmark);
+            console.log(
+              `📚 Added message to existing bookmark: "${existingBookmark.title}"`
+            );
+          } catch (err) {
+            console.error(
+              "Failed to update existing bookmark",
+              existingBookmark.id,
+              err
+            );
+          }
+        } else {
+          console.log(
+            `📚 Message already present in bookmark: "${existingBookmark.title}"`
+          );
+        }
+        continue;
+      }
+
+      console.log(
+        `📚 No existing bookmark found, creating new one for message`
+      );
+      // Generate a new bookmark for this message
       const prompt = `You are an assistant that extracts a concise topic keyword from a single message.
 Given the message below, return a single short keyword or phrase (1-3 words) that best represents the topic discussed.
 Return JSON only with a top-level key named "keyword" (string).
 Do NOT return any extra explanation or text.
 
 Message:
-${message.content}
+${newMessage.content}
 
 Respond with JSON only.`;
 
@@ -495,8 +506,53 @@ Respond with JSON only.`;
       const keyword = response?.object?.keyword?.trim();
       if (!keyword) continue;
 
-      // Create a new bookmark for this single message
-      // Only include the current message ID (no conversation pairs to avoid conflicts)
+      // Check if we already have a bookmark with this exact title
+      const duplicate = existingBookmarks.find(
+        (b) => b.title.toLowerCase() === keyword.toLowerCase()
+      );
+      if (duplicate) {
+        // Merge into duplicate
+        const existingIds = (duplicate.messageIds || "")
+          .split(",")
+          .filter(Boolean);
+        const conversationIds = getConversationPairIds(
+          [newMessage.id],
+          messages
+        );
+
+        // Only add if not already present
+        const newIds = conversationIds.filter(
+          (id) => !existingIds.includes(id)
+        );
+        if (newIds.length > 0) {
+          const mergedIds = [...existingIds, ...newIds];
+
+          try {
+            await blink.db.bookmarks.update(duplicate.id, {
+              messageIds: mergedIds.join(","),
+            });
+
+            const updatedBookmark = {
+              ...duplicate,
+              messageIds: mergedIds.join(","),
+            };
+            createdOrUpdated.push(updatedBookmark);
+            console.log(
+              `📚 Merged message into existing bookmark: "${duplicate.title}"`
+            );
+          } catch (err) {
+            console.error(
+              "Failed to update duplicate bookmark",
+              duplicate.id,
+              err
+            );
+          }
+        }
+        continue;
+      }
+
+      // Create a new bookmark
+      const conversationIds = getConversationPairIds([newMessage.id], messages);
       const bookmark: Bookmark = {
         id: `bookmark_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         chatSessionId,
@@ -504,16 +560,15 @@ Respond with JSON only.`;
         title: keyword,
         description: `Auto-generated topic: ${keyword}`,
         category: keyword.toLowerCase().replace(/\s+/g, "_"),
-        messageIds: message.id, // Only this single message
+        messageIds: conversationIds.join(","),
         createdAt: new Date().toISOString(),
       };
 
       try {
         await blink.db.bookmarks.create(bookmark);
         createdOrUpdated.push(bookmark);
-        alreadyBookmarkedMessageIds.add(message.id); // Track that this message is now bookmarked
         console.log(
-          `📚 Created new bookmark: "${keyword}" for message: "${message.content.substring(
+          `📚 Created new bookmark: "${keyword}" for message: "${newMessage.content.substring(
             0,
             50
           )}..."`
@@ -1005,9 +1060,6 @@ export async function generateEnhancedBookmarksForChat(
   // Generate bookmarks at segment boundaries and key moments
   const enhancedBookmarks: EnhancedBookmark[] = [];
 
-  // Track message IDs that already have bookmarks from segments
-  const alreadyBookmarkedIds = new Set<string>();
-  
   topicSegments.forEach((segment, index) => {
     const segmentStartIndex = messages.findIndex(
       (msg) => msg.id === segment.startMessageId
@@ -1040,7 +1092,7 @@ export async function generateEnhancedBookmarksForChat(
       title: segment.title,
       description: segment.summary,
       category: getDominantTopicCategory(segment.title),
-      messageIds: segment.startMessageId, // Only bookmark the start message, not multiple
+      messageIds: `${segment.startMessageId},${segment.endMessageId}`,
       createdAt: new Date(
         Date.now() - (topicSegments.length - index) * 60000
       ).toISOString(), // Staggered times
@@ -1048,15 +1100,14 @@ export async function generateEnhancedBookmarksForChat(
       messagePosition: segmentStartIndex,
       conversationProgress,
       segmentContext: segment,
-      relatedMessages: [segment.startMessageId], // Only the start message
+      relatedMessages: messages
+        .slice(segmentStartIndex, segmentStartIndex + segment.messageCount)
+        .map((msg) => msg.id),
     });
-    
-    // Mark this message as bookmarked
-    alreadyBookmarkedIds.add(segment.startMessageId);
   });
 
-  // Add some additional bookmarks at key conversation moments (avoiding duplicates)
-  const keyMoments = await detectKeyMoments(messages, alreadyBookmarkedIds);
+  // Add some additional bookmarks at key conversation moments
+  const keyMoments = detectKeyMoments(messages);
   keyMoments.forEach((moment, index) => {
     enhancedBookmarks.push({
       id: `key-moment-${index + 1}`,
@@ -1119,151 +1170,181 @@ interface KeyMoment {
   keywords: string[];
 }
 
-async function detectKeyMoments(messages: Message[], alreadyBookmarkedIds?: Set<string>): Promise<KeyMoment[]> {
+function detectKeyMoments(messages: Message[]): KeyMoment[] {
   const keyMoments: KeyMoment[] = [];
-  const bookmarkedIds = alreadyBookmarkedIds || new Set<string>();
-  const existingTopics = new Set<string>(); // Track topics to avoid duplicates
 
-  for (const message of messages) {
-    const index = messages.indexOf(message);
-    
-    // Skip if this message is already bookmarked
-    if (bookmarkedIds.has(message.id)) continue;
-
+  messages.forEach((message, index) => {
     const content = message.content.toLowerCase();
     const originalContent = message.content;
 
-    // Only detect key moments for substantial content
-    if (originalContent.trim().length < 30) continue;
-
-    // Be much more selective - only capture truly unique and significant moments
-    let isSignificant = false;
-    let title = "";
-    let keywords: string[] = [];
-
-    // Only detect questions that are truly substantial and specific
-    if (content.includes("?") && message.role === "user" && 
-        originalContent.length > 50 && // Must be substantial
-        (content.includes("complex") || content.includes("detailed") || 
-         content.includes("specific") || content.includes("technical"))) {
-      title = generateQuestionTitle(originalContent);
-      keywords = ["Complex Question", "Technical Q&A"];
-      isSignificant = true;
-    }
-    
-    // Only detect major decisions/conclusions with specific actionable content
-    else if (message.role === "assistant" && originalContent.length > 200 && // Must be very substantial
-             ((content.includes("conclusion") && (content.includes("therefore") || content.includes("final"))) ||
-              (content.includes("recommend") && content.includes("should")) ||
-              (content.includes("solution") && content.includes("implement")) ||
-              (content.includes("decision") && content.includes("choose")))) {
-      
-      const potentialTitle = await generateDecisionTitle(originalContent);
-      
-      // Check if this topic is too similar to existing bookmarks
-      const titleLower = potentialTitle.toLowerCase();
-      let isDuplicate = false;
-      
-      for (const existingTopic of existingTopics) {
-        if (titleLower.includes(existingTopic.toLowerCase()) || 
-            existingTopic.toLowerCase().includes(titleLower)) {
-          isDuplicate = true;
-          break;
-        }
-      }
-      
-      if (!isDuplicate) {
-        title = potentialTitle;
-        keywords = ["Major Decision", "Key Conclusion"];
-        isSignificant = true;
-        existingTopics.add(title);
-      }
-    }
-    
-    // Only detect code that introduces new concepts or significant implementations
-    else if ((content.includes("```") || content.includes("implementation")) && 
-             originalContent.length > 200 && // Must be substantial
-             (content.includes("new") || content.includes("create") || 
-              content.includes("build") || content.includes("implement"))) {
-      title = generateCodeTitle(originalContent);
-      keywords = ["Major Implementation", "New Code"];
-      isSignificant = true;
-    }
-
-    if (isSignificant) {
+    // Detect questions
+    if (content.includes("?") && message.role === "user") {
+      const title = generateQuestionTitle(originalContent);
       keyMoments.push({
         messageId: message.id,
         messageIndex: index,
         title,
         description: originalContent.slice(0, 100) + "...",
-        keywords,
+        keywords: ["Important Question", "Q&A"],
       });
-      
-      // Mark this message as bookmarked to prevent duplicates
-      bookmarkedIds.add(message.id);
     }
-  }
 
-  // Limit to most significant moments (max 2 to avoid overwhelming)
-  return keyMoments.slice(0, 2);
+    // Detect decisions or conclusions
+    if (
+      (content.includes("decided") ||
+        content.includes("conclusion") ||
+        content.includes("solution")) &&
+      message.role === "assistant"
+    ) {
+      const title = generateDecisionTitle(originalContent);
+      keyMoments.push({
+        messageId: message.id,
+        messageIndex: index,
+        title,
+        description: originalContent.slice(0, 100) + "...",
+        keywords: ["Key Decision Point", "Solution"],
+      });
+    }
+
+    // Detect code or technical explanations
+    if (
+      content.includes("```") ||
+      (content.includes("function") && content.includes("{"))
+    ) {
+      const title = generateCodeTitle(originalContent);
+      keyMoments.push({
+        messageId: message.id,
+        messageIndex: index,
+        title,
+        description: "Technical implementation or code sample",
+        keywords: ["Code Example", "Technical"],
+      });
+    }
+  });
+
+  // Limit to most significant moments (max 5)
+  return keyMoments.slice(0, 5);
 }
 
 function generateQuestionTitle(content: string): string {
-  // Use simple, clean question detection
-  const contentLower = content.toLowerCase().trim();
-  
-  if (contentLower.includes("how")) return "How Question";
-  if (contentLower.includes("what")) return "What Question";
-  if (contentLower.includes("why")) return "Why Question";
-  if (contentLower.includes("when")) return "When Question";
-  if (contentLower.includes("where")) return "Where Question";
-  if (contentLower.includes("can") || contentLower.includes("could")) return "Can Question";
-  if (contentLower.includes("should")) return "Should Question";
-  
-  return "Question";
+  const contentLower = content.toLowerCase();
+
+  // Extract the main subject of the question
+  if (contentLower.includes("how") && contentLower.includes("?")) {
+    // "How to..." questions
+    const match = content.match(/how\s+(?:do|can|to)\s+\w+\s+([^?]+)/i);
+    if (match) {
+      const subject = match[1].trim().split(/\s+/).slice(0, 8).join(" ");
+      return `How to ${subject}`;
+    }
+    return "How-to Question";
+  }
+
+  if (contentLower.includes("what") && contentLower.includes("?")) {
+    // "What is..." questions
+    const match = content.match(/what\s+(?:is|are|does|do)\s+([^?]+)/i);
+    if (match) {
+      const subject = match[1].trim().split(/\s+/).slice(0, 8).join(" ");
+      return `What is ${subject}`;
+    }
+    return extractMainTopic(content, "What about");
+  }
+
+  if (contentLower.includes("why") && contentLower.includes("?")) {
+    // "Why..." questions
+    const match = content.match(
+      /why\s+(?:is|are|does|do|would|should)?\s*([^?]+)/i
+    );
+    if (match) {
+      const subject = match[1].trim().split(/\s+/).slice(0, 8).join(" ");
+      return `Why ${subject}`;
+    }
+    return extractMainTopic(content, "Why");
+  }
+
+  if (contentLower.includes("can") && contentLower.includes("?")) {
+    // "Can..." questions
+    const match = content.match(/can\s+(?:you|i|we)?\s*([^?]+)/i);
+    if (match) {
+      const subject = match[1].trim().split(/\s+/).slice(0, 8).join(" ");
+      return `Can ${subject}`;
+    }
+    return extractMainTopic(content, "Can");
+  }
+
+  // Handle "Are the..." questions
+  if (contentLower.includes("are") && contentLower.includes("?")) {
+    const match = content.match(/are\s+(?:the|there)?\s*([^?]+)/i);
+    if (match) {
+      const subject = match[1].trim().split(/\s+/).slice(0, 8).join(" ");
+      return `Are ${subject}`;
+    }
+    return extractMainTopic(content, "Are");
+  }
+
+  // Handle "Is the..." questions
+  if (contentLower.includes("is") && contentLower.includes("?")) {
+    const match = content.match(/is\s+(?:the|there)?\s*([^?]+)/i);
+    if (match) {
+      const subject = match[1].trim().split(/\s+/).slice(0, 8).join(" ");
+      return `Is ${subject}`;
+    }
+    return extractMainTopic(content, "Is");
+  }
+
+  // Generic question - try to extract first meaningful words up to the question mark
+  const questionText = content.split("?")[0].trim();
+  const words = questionText.split(/\s+/).slice(0, 10).join(" ");
+  const cleanWords = words.replace(/[!.,]/g, "").trim();
+  return cleanWords.length > 0
+    ? `Question: ${cleanWords}`
+    : extractMainTopic(content, "Question about");
 }
 
-async function generateDecisionTitle(content: string): Promise<string> {
-  // Use the same LLM-based approach as General bookmarks for clean titles
-  try {
-    const prompt = `You are an assistant that extracts a concise topic keyword from a message.
-Given the message below, return a single short keyword or phrase (1-3 words) that best represents the main topic discussed.
-Focus on the core subject matter, ignore formatting and filler words.
-Return JSON only with a top-level key named "keyword" (string).
+function generateDecisionTitle(content: string): string {
+  const contentLower = content.toLowerCase();
 
-Message:
-${content}
-
-Respond with JSON only.`;
-
-    const response = await blink.ai.generateObject({
-      prompt,
-      schema: {
-        type: "object",
-        properties: {
-          keyword: { type: "string" },
-        },
-        required: ["keyword"],
-      },
-    });
-
-    const keyword = response?.object?.keyword?.trim();
-    if (keyword && keyword.length > 2) {
-      // Just return the clean keyword without any prefix
-      return keyword;
+  if (contentLower.includes("solution")) {
+    // Extract what the solution is about
+    const match = content.match(
+      /(?:solution|solve)\s+(?:is|to|for)?\s*([^.!]+)/i
+    );
+    if (match) {
+      const subject = match[1].trim().split(/\s+/).slice(0, 10).join(" ");
+      return `Solution: ${subject}`;
     }
-  } catch (error) {
-    console.warn("Failed to generate LLM-based title, using fallback");
+    // Fallback: extract main topic from the content
+    return extractMainTopic(content, "Solution");
   }
-  
-  // Fallback to simple categories only if LLM fails
-  const contentLower = content.toLowerCase().trim();
-  if (contentLower.includes("solution")) return "Solution";
-  if (contentLower.includes("conclusion")) return "Conclusion";
-  if (contentLower.includes("decision")) return "Decision";
-  if (contentLower.includes("recommend")) return "Recommendation";
-  
-  return "Key Point";
+
+  if (contentLower.includes("decided")) {
+    // Extract what was decided
+    const match = content.match(/decided\s+(?:to|on|that)?\s*([^.!]+)/i);
+    if (match) {
+      const subject = match[1].trim().split(/\s+/).slice(0, 10).join(" ");
+      return `Decision: ${subject}`;
+    }
+    // Fallback: extract main topic from the content
+    return extractMainTopic(content, "Decision");
+  }
+
+  if (contentLower.includes("conclusion")) {
+    // Extract what the conclusion is about
+    const match = content.match(/conclusion\s+(?:is|that)?\s*([^.!]+)/i);
+    if (match) {
+      const subject = match[1].trim().split(/\s+/).slice(0, 10).join(" ");
+      return `Conclusion: ${subject}`;
+    }
+    // Fallback: extract main topic from the content
+    return extractMainTopic(content, "Conclusion");
+  }
+
+  // Generic decision point - take first sentence or reasonable chunk
+  const sentences = content.split(/[.!]/);
+  const firstSentence = sentences[0].trim();
+  const words = firstSentence.split(/\s+/).slice(0, 12).join(" ");
+  const cleanWords = words.replace(/[,]/g, "").trim();
+  return `Decision: ${cleanWords}`;
 }
 
 function extractMainTopic(content: string, prefix: string): string {
@@ -1383,65 +1464,44 @@ function extractMainTopic(content: string, prefix: string): string {
 }
 
 function generateCodeTitle(content: string): string {
-  // Extract meaningful code topic while keeping it concise
   const contentLower = content.toLowerCase();
 
-  // Look for specific function, class, or component names
+  // Look for function names
   const functionMatch = content.match(/function\s+(\w+)/i);
   if (functionMatch) {
     return `Function: ${functionMatch[1]}`;
   }
 
+  // Look for class names
   const classMatch = content.match(/class\s+(\w+)/i);
   if (classMatch) {
     return `Class: ${classMatch[1]}`;
   }
 
-  const componentMatch = content.match(/(?:const|let|var)\s+(\w+)\s*=.*(?:React|jsx|tsx)/i);
+  // Look for component names (React)
+  const componentMatch = content.match(
+    /(?:const|let|var)\s+(\w+)\s*=.*(?:React|jsx|tsx)/i
+  );
   if (componentMatch) {
     return `Component: ${componentMatch[1]}`;
   }
 
-  // Look for programming languages/technologies with context
-  if (contentLower.includes("react")) {
-    // Try to extract what kind of React code
-    if (contentLower.includes("component")) return "React Component";
-    if (contentLower.includes("hook")) return "React Hook";
-    if (contentLower.includes("state")) return "React State";
-    return "React Code";
+  // Look for method calls or objects
+  const methodMatch = content.match(/(\w+)\.(\w+)\s*\(/);
+  if (methodMatch) {
+    return `Method: ${methodMatch[1]}.${methodMatch[2]}`;
   }
-  
-  if (contentLower.includes("typescript") || contentLower.includes("ts")) {
-    if (contentLower.includes("type")) return "TypeScript Types";
-    if (contentLower.includes("interface")) return "TypeScript Interface";
-    return "TypeScript";
-  }
-  
-  if (contentLower.includes("javascript") || contentLower.includes("js")) {
-    if (contentLower.includes("async") || contentLower.includes("promise")) return "JavaScript Async";
-    if (contentLower.includes("dom")) return "JavaScript DOM";
-    return "JavaScript";
-  }
-  
-  if (contentLower.includes("python")) {
-    if (contentLower.includes("pandas") || contentLower.includes("numpy")) return "Python Data";
-    if (contentLower.includes("django") || contentLower.includes("flask")) return "Python Web";
-    return "Python Code";
-  }
-  
-  if (contentLower.includes("css")) {
-    if (contentLower.includes("grid") || contentLower.includes("flexbox")) return "CSS Layout";
-    if (contentLower.includes("animation")) return "CSS Animation";
-    return "CSS Styling";
-  }
-  
-  if (contentLower.includes("html")) return "HTML Markup";
-  if (contentLower.includes("sql")) return "SQL Query";
-  
-  // Generic code categories
-  if (contentLower.includes("algorithm")) return "Algorithm";
-  if (contentLower.includes("api")) return "API Code";
-  if (contentLower.includes("database")) return "Database Code";
-  
+
+  // Look for programming languages/technologies mentioned
+  if (contentLower.includes("react")) return "React Code";
+  if (contentLower.includes("typescript") || contentLower.includes("ts"))
+    return "TypeScript Code";
+  if (contentLower.includes("javascript") || contentLower.includes("js"))
+    return "JavaScript Code";
+  if (contentLower.includes("python")) return "Python Code";
+  if (contentLower.includes("css")) return "CSS Code";
+  if (contentLower.includes("html")) return "HTML Code";
+  if (contentLower.includes("sql")) return "SQL Code";
+
   return "Code Example";
 }
