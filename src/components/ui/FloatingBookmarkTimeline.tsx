@@ -34,6 +34,7 @@ export default function FloatingBookmarkTimeline({
 }: FloatingBookmarkTimelineProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterKeyword, setFilterKeyword] = useState<string>("all");
 
   // Sort bookmarks chronologically by message position
   const sortedBookmarks = useMemo(() => {
@@ -42,11 +43,24 @@ export default function FloatingBookmarkTimeline({
       .sort((a, b) => a.messagePosition - b.messagePosition);
   }, [bookmarks, chatSessionId]);
 
-  // Filter bookmarks by category
+  // Filter bookmarks by category and keyword
   const filteredBookmarks = useMemo(() => {
-    if (filterCategory === "all") return sortedBookmarks;
-    return sortedBookmarks.filter((b) => b.category === filterCategory);
-  }, [sortedBookmarks, filterCategory]);
+    let filtered = sortedBookmarks;
+
+    // Filter by category
+    if (filterCategory !== "all") {
+      filtered = filtered.filter((b) => b.category === filterCategory);
+    }
+
+    // Filter by keyword
+    if (filterKeyword !== "all") {
+      filtered = filtered.filter(
+        (b) => b.keywords && b.keywords.includes(filterKeyword)
+      );
+    }
+
+    return filtered;
+  }, [sortedBookmarks, filterCategory, filterKeyword]);
 
   // Get unique categories for filtering
   const categories = useMemo(() => {
@@ -54,6 +68,17 @@ export default function FloatingBookmarkTimeline({
       bookmarks.map((b) => b.category).filter(Boolean) as string[]
     );
     return Array.from(cats);
+  }, [bookmarks]);
+
+  // Get unique keywords for filtering
+  const keywords = useMemo(() => {
+    const keywordSet = new Set<string>();
+    bookmarks.forEach((b) => {
+      if (b.keywords) {
+        b.keywords.forEach((keyword) => keywordSet.add(keyword));
+      }
+    });
+    return Array.from(keywordSet).sort();
   }, [bookmarks]);
 
   // Calculate timeline visualization
@@ -98,7 +123,7 @@ export default function FloatingBookmarkTimeline({
   }
 
   return (
-    <div className="fixed top-20 right-4 z-50 w-96 max-h-[70vh]">
+    <div className="fixed top-20 right-4 z-50 w-[28rem] max-h-[80vh]">
       <Card className="bg-background/95 backdrop-blur-sm border-border shadow-lg hover:shadow-xl transition-all">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -163,6 +188,7 @@ export default function FloatingBookmarkTimeline({
           {categories.length > 0 && (
             <div className="flex items-center gap-2 mt-3">
               <FilterIcon className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Category:</span>
               <div className="flex flex-wrap gap-1">
                 <Button
                   onClick={() => setFilterCategory("all")}
@@ -188,11 +214,40 @@ export default function FloatingBookmarkTimeline({
               </div>
             </div>
           )}
+
+          {/* Keyword Filter */}
+          {keywords.length > 0 && (
+            <div className="flex items-center gap-2 mt-2">
+              <TagIcon className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Type:</span>
+              <div className="flex flex-wrap gap-1">
+                <Button
+                  onClick={() => setFilterKeyword("all")}
+                  variant={filterKeyword === "all" ? "default" : "outline"}
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                >
+                  All
+                </Button>
+                {keywords.map((keyword) => (
+                  <Button
+                    key={keyword}
+                    onClick={() => setFilterKeyword(keyword)}
+                    variant={filterKeyword === keyword ? "default" : "outline"}
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                  >
+                    {keyword}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent className="pt-0">
-          <ScrollArea className="h-96">
-            <div className="space-y-3">
+          <ScrollArea className="h-[32rem]">
+            <div className="space-y-4">
               {timelineData.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <BookmarkIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -205,12 +260,12 @@ export default function FloatingBookmarkTimeline({
                   <div key={bookmark.id} className="relative">
                     {/* Timeline connector */}
                     {index < timelineData.length - 1 && (
-                      <div className="absolute left-3 top-12 bottom-0 w-px bg-border" />
+                      <div className="absolute left-3 top-14 bottom-0 w-px bg-border" />
                     )}
 
                     <div
                       onClick={() => onBookmarkClick(bookmark)}
-                      className={`relative cursor-pointer p-3 rounded-lg border transition-all duration-200 hover:shadow-md ${
+                      className={`relative cursor-pointer p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
                         bookmark.isCurrentlyViewed
                           ? "bg-accent/20 border-accent shadow-sm"
                           : "bg-background hover:bg-accent/10 border-border"
@@ -218,7 +273,7 @@ export default function FloatingBookmarkTimeline({
                     >
                       {/* Timeline dot */}
                       <div
-                        className={`absolute left-3 top-3 w-2 h-2 rounded-full ${
+                        className={`absolute left-3 top-4 w-2 h-2 rounded-full ${
                           bookmark.isCurrentlyViewed
                             ? "bg-primary"
                             : "bg-muted-foreground"
@@ -227,7 +282,7 @@ export default function FloatingBookmarkTimeline({
 
                       <div className="ml-6">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-medium text-sm line-clamp-2 flex-1">
+                          <h4 className="font-medium text-sm flex-1 leading-relaxed">
                             {bookmark.title}
                           </h4>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -237,32 +292,42 @@ export default function FloatingBookmarkTimeline({
                         </div>
 
                         {bookmark.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
                             {bookmark.description}
                           </p>
                         )}
 
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-start justify-between mt-3 gap-3">
+                          <div className="flex items-center gap-2 flex-wrap flex-1">
                             {bookmark.category && (
                               <Badge
                                 variant="secondary"
-                                className="text-xs px-1.5 py-0.5"
+                                className="text-xs px-2 py-1"
                               >
                                 <TagIcon className="w-2.5 h-2.5 mr-1" />
                                 {bookmark.category}
                               </Badge>
                             )}
+                            {bookmark.keywords &&
+                              bookmark.keywords.map((keyword) => (
+                                <Badge
+                                  key={keyword}
+                                  variant="outline"
+                                  className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border-blue-200"
+                                >
+                                  {keyword}
+                                </Badge>
+                              ))}
                             {bookmark.segmentContext && (
                               <Badge
                                 variant="outline"
-                                className="text-xs px-1.5 py-0.5"
+                                className="text-xs px-2 py-1"
                               >
                                 Topic: {bookmark.segmentContext.title}
                               </Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
                             <ClockIcon className="w-3 h-3" />
                             <span>{formatRelativeTime(bookmark)}</span>
                           </div>

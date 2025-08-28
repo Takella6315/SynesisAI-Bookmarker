@@ -35,6 +35,7 @@ export interface Bookmark {
   title: string;
   description?: string;
   category?: string;
+  keywords?: string[]; // Keywords for filtering
   messageIds?: string;
   createdAt: string;
 }
