@@ -32,16 +32,16 @@ export default function Dashboard() {
     setIsLoading(true);
     try {
       const [sessions, bookmarkList, messageList] = await Promise.all([
-        blink.db.chatSessions.list({
+        (blink.db as any).chatSessions.list({
           where: { userId: user.id },
           orderBy: { updatedAt: 'desc' },
           limit: 50,
         }),
-        blink.db.bookmarks.list({
+        (blink.db as any).bookmarks.list({
           where: { userId: user.id },
           orderBy: { createdAt: 'desc' },
         }),
-        blink.db.messages.list({
+        (blink.db as any).messages.list({
           where: { userId: user.id },
           orderBy: { createdAt: 'asc' },
         }),
@@ -76,7 +76,7 @@ export default function Dashboard() {
 
   const createNewChat = async () => {
     try {
-      const newSession = await blink.db.chatSessions.create({
+      const newSession = await (blink.db as any).chatSessions.create({
         id: `chat_${Date.now()}`,
         userId: user.id,
         title: 'New Chat',
@@ -121,7 +121,7 @@ export default function Dashboard() {
     try {
       await cleanupBookmarks(sessionId, user.id);
       // Reload bookmarks after cleanup
-      const updatedBookmarks = await blink.db.bookmarks.list({
+      const updatedBookmarks = await (blink.db as any).bookmarks.list({
         where: { userId: user.id },
         orderBy: { createdAt: 'desc' },
       });

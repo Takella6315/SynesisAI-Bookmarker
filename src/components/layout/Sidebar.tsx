@@ -41,7 +41,7 @@ export default function Sidebar({ onNewChat, chats, bookmarks, messages }: Sideb
     }
     
     try {
-      const { data: users } = await blink.db.users.select(
+      const { data: users } = await (blink.db as any).users.select(
         "*"
       ).filter({
         id: user.id,

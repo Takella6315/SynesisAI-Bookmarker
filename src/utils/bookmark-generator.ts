@@ -395,7 +395,7 @@ export async function generateBookmarksForChat(
 
   try {
     // Fetch existing bookmarks for this chat + user
-    const existingBookmarks: Bookmark[] = await blink.db.bookmarks.list({
+    const existingBookmarks: Bookmark[] = await (blink.db as any).bookmarks.list({
       where: { chatSessionId, userId },
     });
 
@@ -509,7 +509,7 @@ Respond with JSON only.`;
       };
 
       try {
-        await blink.db.bookmarks.create(bookmark);
+        await (blink.db as any).bookmarks.create(bookmark);
         createdOrUpdated.push(bookmark);
         alreadyBookmarkedMessageIds.add(message.id); // Track that this message is now bookmarked
         console.log(
@@ -536,7 +536,7 @@ export async function cleanupBookmarks(
   userId: string
 ): Promise<void> {
   try {
-    const existingBookmarks: Bookmark[] = await blink.db.bookmarks.list({
+    const existingBookmarks: Bookmark[] = await (blink.db as any).bookmarks.list({
       where: { chatSessionId, userId },
     });
 
@@ -578,13 +578,13 @@ export async function cleanupBookmarks(
         });
 
         // Update primary bookmark with merged message IDs
-        await blink.db.bookmarks.update(primaryBookmark.id, {
+        await (blink.db as any).bookmarks.update(primaryBookmark.id, {
           messageIds: Array.from(allMessageIds).join(","),
         });
 
         // Delete duplicate bookmarks
         for (let i = 1; i < bookmarks.length; i++) {
-          await blink.db.bookmarks.delete(bookmarks[i].id);
+          await (blink.db as any).bookmarks.delete(bookmarks[i].id);
         }
       }
     }
