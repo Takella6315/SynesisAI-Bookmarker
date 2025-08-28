@@ -11,6 +11,7 @@ import {
 import { Button } from '../components/ui/button';
 import { FolderCard } from '../components/ui/folder-card';
 import Sidebar from '../components/layout/Sidebar';
+import MindMapDialog from '../components/ui/MindMapDialog';
 import blink from '../blink/client';
 import { ChatSession, Bookmark, Message, FolderViewState } from '../types';
 import { LLM_MODELS } from '../constants/models';
@@ -20,9 +21,10 @@ export default function Dashboard() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [viewState, setViewState] = useState<FolderViewState>({ type: 'chats' });
   const [isLoading, setIsLoading] = useState(false);
+  const [showMindMap, setShowMindMap] = useState(false);
   const navigate = useNavigate();
 
   const loadData = useCallback(async () => {
@@ -128,6 +130,14 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Failed to cleanup bookmarks for session:', sessionId, error);
     }
+  };
+
+  const handleMindMapChatClick = (chatId: string) => {
+    navigate(`/chat/${chatId}`);
+  };
+
+  const handleMindMapBookmarkClick = (bookmarkId: string, chatId: string) => {
+    navigate(`/chat/${chatId}?bookmark=${bookmarkId}`);
   };
 
   const formatDate = (dateString: string) => {
@@ -287,7 +297,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar onNewChat={createNewChat} />
+      <Sidebar onNewChat={createNewChat} chats={chatSessions} bookmarks={bookmarks} messages={messages} />
 
       <div className="flex-1 overflow-hidden">
         {/* Header */}
@@ -295,7 +305,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-black font-sans tracking-tight">
-                Neural File System
+                AI Folder System
               </h1>
               <p className="text-gray-600 mt-1 font-sans">
                 Your AI conversations, organized like folders
@@ -321,10 +331,10 @@ export default function Dashboard() {
               </Button>
               <Button
                 variant="outline"
-                onClick={handleLogout}
                 className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+                onClick={() => setShowMindMap(true)}
               >
-                Logout
+                View as MindMap
               </Button>
             </div>
           </div>
@@ -365,6 +375,16 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Mind Map Dialog */}
+      <MindMapDialog
+        open={showMindMap}
+        onOpenChange={setShowMindMap}
+        chats={chatSessions}
+        bookmarks={bookmarks}
+        onChatClick={handleMindMapChatClick}
+        onBookmarkClick={handleMindMapBookmarkClick}
+      />
     </div>
   );
 }
