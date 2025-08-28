@@ -78,7 +78,7 @@ export default function LandingPage() {
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
               >
-                Coming Soon... Join Waitlist!
+                Coming Soon... 
                 <ArrowRightIcon className={`w-5 h-5 ml-2 transition-transform duration-300 ${isHovered ? 'translate-x-1' : ''}`} />
               </Button>
 
