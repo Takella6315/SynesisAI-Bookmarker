@@ -8,6 +8,7 @@ import {
   BookmarkIcon,
   ExternalLinkIcon,
   ChevronRightIcon,
+  TrashIcon,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -20,6 +21,7 @@ interface FolderCardProps {
   timestamp?: string
   onOpen?: () => void
   onGoInto?: () => void
+  onDelete?: () => void
   className?: string
   isBookmark?: boolean
 }
@@ -33,6 +35,7 @@ export function FolderCard({
   timestamp,
   onOpen,
   onGoInto,
+  onDelete,
   className,
   isBookmark = false,
 }: FolderCardProps) {
@@ -66,11 +69,27 @@ export function FolderCard({
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
             {getIcon()}
           </div>
-          {timestamp && (
-            <div className="text-xs text-muted-foreground">
-              {timestamp}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {timestamp && (
+              <div className="text-xs text-muted-foreground">
+                {timestamp}
+              </div>
+            )}
+            {onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="h-7 w-7 p-0 border-gray-300 text-gray-700 hover:bg-red-50 hover:text-red-600"
+                title="Delete"
+              >
+                <TrashIcon className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Content */}
