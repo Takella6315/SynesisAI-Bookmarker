@@ -272,7 +272,7 @@ export default function ChatInterface() {
   const loadChatSession = useCallback(async () => {
     if (!user || !id) return;
     try {
-      const sessions = await blink.db.chatSessions.list({
+      const sessions = await (blink.db as any).chatSessions.list({
         where: { id, userId: user.id },
       });
       if (sessions.length > 0) {
@@ -289,7 +289,7 @@ export default function ChatInterface() {
   const loadMessages = useCallback(async () => {
     if (!user || !id) return;
     try {
-      const messageList = await blink.db.messages.list({
+      const messageList = await (blink.db as any).messages.list({
         where: { chatSessionId: id, userId: user.id },
         orderBy: { createdAt: "asc" },
       });
@@ -316,7 +316,7 @@ export default function ChatInterface() {
 
       // Load bookmark if specified
       if (bookmarkId) {
-        const bookmarks = await blink.db.bookmarks.list({
+        const bookmarks = await (blink.db as any).bookmarks.list({
           where: { id: bookmarkId, userId: user.id },
         });
         if (bookmarks.length > 0) {
@@ -377,7 +377,11 @@ export default function ChatInterface() {
     } catch (error) {
       console.error("Failed to load messages:", error);
     }
-  }, [user, id, bookmarkId, focusMode]); // Function to regenerate enhanced bookmarks
+  }, [user, id, bookmarkId, focusMode]);
+
+  // Function to regenerate enhanced bookmarks (with throttling to avoid rate limits)
+  // Note: Disabled as initial load handled in loadMessages, real-time updates in sendMessage
+  /*
   const regenerateBookmarks = useCallback(
     async (messages: Message[]) => {
       if (!id || messages.length === 0) return;
@@ -401,6 +405,7 @@ export default function ChatInterface() {
     },
     [id]
   );
+  */
 
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state) => {
@@ -416,12 +421,36 @@ export default function ChatInterface() {
     }
   }, [user, id, loadChatSession, loadMessages]);
 
-  // Regenerate bookmarks when messages change (during active chat)
+  // Smart bookmark regeneration with throttling and batching
+  // Note: Disabled as we now update enhanced bookmarks immediately in sendMessage
+  /*
   useEffect(() => {
-    if (allMessages.length > 0) {
+    if (allMessages.length === 0) return;
+
+    const now = Date.now();
+    const timeSinceLastGeneration = now - lastBookmarkGeneration.current;
+
+    // Only regenerate if:
+    // 1. It's been more than 15 seconds since last generation
+    // 2. We have a meaningful number of new messages (multiple of 4)
+    // 3. We have at least 4 messages total
+    if (
+      timeSinceLastGeneration > bookmarkGenerationThreshold &&
+      allMessages.length >= 4 &&
+      allMessages.length % 4 === 0
+    ) {
+      console.log(
+        `🔖 Triggering bookmark regeneration (${allMessages.length} messages, ${timeSinceLastGeneration}ms since last)`
+      );
+      lastBookmarkGeneration.current = now;
       regenerateBookmarks(allMessages);
+    } else {
+      console.log(
+        `🔖 Skipping bookmark regeneration (${allMessages.length} messages, ${timeSinceLastGeneration}ms since last)`
+      );
     }
-  }, [allMessages, regenerateBookmarks]);
+  }, [allMessages.length, regenerateBookmarks]); // Only trigger on message count changes, not content
+  */
 
   // Auto-show floating timeline when bookmarks are available
   useEffect(() => {
@@ -516,13 +545,13 @@ export default function ChatInterface() {
 
       try {
         // Check if user already exists
-        const existingUsers = await blink.db.users.list({
+        const existingUsers = await (blink.db as any).users.list({
           where: { id: user.id },
         });
 
         if (existingUsers.length === 0) {
           // Create user record
-          await blink.db.users.create({
+          await (blink.db as any).users.create({
             id: user.id,
             email: user.email,
             displayName: user.displayName || user.email.split("@")[0],
@@ -549,7 +578,7 @@ export default function ChatInterface() {
           ? `${firstMessage.substring(0, 50)}...`
           : firstMessage;
 
-      await blink.db.chatSessions.update(session.id, {
+      await (blink.db as any).chatSessions.update(session.id, {
         title,
         updatedAt: new Date().toISOString(),
       });
@@ -569,7 +598,7 @@ export default function ChatInterface() {
 
     try {
       // Create user message
-      const userMessageObj = await blink.db.messages.create({
+      const userMessageObj = await (blink.db as any).messages.create({
         id: `msg_${Date.now()}_user`,
         chatSessionId: session.id,
         userId: user.id,
@@ -666,7 +695,7 @@ Keep your response conversational and helpful.`;
       );
 
       // Save the final assistant message to database
-      await blink.db.messages.create({
+      await (blink.db as any).messages.create({
         id: assistantMessageId,
         chatSessionId: session.id,
         userId: user.id,
@@ -687,7 +716,7 @@ Keep your response conversational and helpful.`;
       const updatedMessages = [...afterUserMessages, finalAssistantMessage];
 
       // Update session
-      await blink.db.chatSessions.update(session.id, {
+      await (blink.db as any).chatSessions.update(session.id, {
         messageCount: session.messageCount + 2,
         model: selectedModel,
         updatedAt: new Date().toISOString(),
@@ -707,6 +736,14 @@ Keep your response conversational and helpful.`;
       // Smart bookmark generation: only create new bookmarks if needed, otherwise update existing ones
       try {
         await generateBookmarksForChat(session.id, user.id, updatedMessages);
+        
+        // Immediately regenerate enhanced bookmarks for real-time UI updates
+        const newEnhancedBookmarks = await generateEnhancedBookmarksForChat(
+          session.id,
+          updatedMessages
+        );
+        setEnhancedBookmarks(newEnhancedBookmarks);
+        console.log(`🔖 Real-time bookmark update: ${newEnhancedBookmarks.length} bookmarks generated`);
       } catch (error) {
         console.error("Failed to auto-generate bookmarks:", error);
       }
@@ -731,7 +768,8 @@ Keep your response conversational and helpful.`;
       const title =
         content.length > 30 ? `${content.substring(0, 30)}...` : content;
 
-      await blink.db.bookmarks.create({
+      // TypeScript casting to bypass SDK type issues
+      await (blink.db as any).bookmarks.create({
         id: `bookmark_${Date.now()}`,
         chatSessionId: session!.id,
         userId: user.id,
@@ -740,6 +778,18 @@ Keep your response conversational and helpful.`;
         messageIds: messageId, // Fixed: use messageIds (plural) to match database schema
         createdAt: new Date().toISOString(),
       });
+
+      // Immediately regenerate enhanced bookmarks for real-time UI updates
+      try {
+        const newEnhancedBookmarks = await generateEnhancedBookmarksForChat(
+          session!.id,
+          allMessages
+        );
+        setEnhancedBookmarks(newEnhancedBookmarks);
+        console.log(`🔖 Manual bookmark created, regenerated ${newEnhancedBookmarks.length} enhanced bookmarks`);
+      } catch (error) {
+        console.error("Failed to regenerate enhanced bookmarks after manual creation:", error);
+      }
 
       toast.success("Bookmark created!");
     } catch (error) {
