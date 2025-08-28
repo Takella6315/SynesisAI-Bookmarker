@@ -42,12 +42,13 @@ export default function LandingPage() {
         </div>
 
         <div className="flex items-center gap-8">
-          <a href="/contact" className="text-gray-600 hover:text-black transition-colors">Contact Us</a>
+          <a href="/contact" className="text-gray-600 hover:text-black transition-colors">Join Waitlist!</a>
           <Button
             onClick={handleGetStarted}
             className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200"
+            disabled={true}
           >
-            Start Now
+            Coming Soon...
           </Button>
         </div>
       </nav>
@@ -77,7 +78,7 @@ export default function LandingPage() {
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
               >
-                Try For Free
+                Coming Soon... Join Waitlist!
                 <ArrowRightIcon className={`w-5 h-5 ml-2 transition-transform duration-300 ${isHovered ? 'translate-x-1' : ''}`} />
               </Button>
 

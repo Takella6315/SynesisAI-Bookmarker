@@ -13,7 +13,6 @@ export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    title: '',
     message: ''
   });
 
@@ -37,7 +36,6 @@ export default function ContactPage() {
         {
           from_name: formData.name,
           from_email: formData.email,
-          message_title: formData.title,
           message: formData.message,
           to_email: 'founders@synesisai-launch.com'
         },
@@ -50,7 +48,6 @@ export default function ContactPage() {
       setFormData({
         name: '',
         email: '',
-        title: '',
         message: ''
       });
       
@@ -101,7 +98,7 @@ export default function ContactPage() {
               <MailIcon className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-5xl font-bold text-black mb-4 leading-tight font-sans tracking-tight">
-              Get in Touch
+              Join Our Waitlist!
             </h1>
             <p className="text-xl text-gray-600 max-w-md mx-auto font-sans">
               Have questions, feedback, or want to collaborate? We'd love to hear from you.
@@ -146,22 +143,6 @@ export default function ContactPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-black font-medium">
-                  Message Title
-                </Label>
-                <Input
-                  id="title"
-                  name="title"
-                  type="text"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  required
-                  className="bg-white border-gray-300 text-black placeholder:text-gray-400 focus:border-black focus:ring-black/20 h-12 rounded-xl transition-all duration-200"
-                  placeholder="What's this about?"
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="message" className="text-black font-medium">
                   Message
                 </Label>
@@ -203,8 +184,8 @@ export default function ContactPage() {
               Prefer to reach us directly?
             </p>
             <div className="flex items-center justify-center gap-6 text-sm">
-              <a href="mailto:contact@synesisai.com" className="text-black hover:text-gray-700 transition-colors font-medium">
-                contact@synesisai.com
+              <a href="mailto:founders@synesisai-launch.com" className="text-black hover:text-gray-700 transition-colors font-medium">
+                founders@synesisai-launch.com
               </a>
               <span className="text-gray-400">•</span>
               <span className="text-gray-600">Response within 24 hours</span>
