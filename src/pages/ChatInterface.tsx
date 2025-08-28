@@ -61,7 +61,7 @@ export default function ChatInterface() {
   const [selectedModel, setSelectedModel] = useState<LLMModel>("gpt-4o-mini");
   const [bookmarkMessageIndex, setBookmarkMessageIndex] = useState(0); // Track current position in bookmark messages
   const [bookmarkMessages, setBookmarkMessages] = useState<Message[]>([]); // Store bookmark-specific messages
-  const [messageQueue, setMessageQueue] = useState<Message[]>([]); // Keep last 15 messages for LLM context
+  const [messageQueue, setMessageQueue] = useState<Message[]>([]); // Keep last 10 messages for LLM context
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previousMessageCountRef = useRef(0);
@@ -87,28 +87,18 @@ export default function ChatInterface() {
     }
   };
 
-  // Handle bookmark click from floating timeline
-  const handleBookmarkClick = (bookmark: EnhancedBookmark) => {
-    const messageIndex = bookmark.messagePosition;
+  // Handle bookmark click from floating timeline for a specific message
+  const handleBookmarkClick = (bookmark: EnhancedBookmark, messageId: string) => {
+    const messageIndex = allMessages.findIndex((m) => m.id === messageId);
     const targetMessage = allMessages[messageIndex];
 
     if (targetMessage) {
-      // Set manual navigation flag to prevent auto-scroll
       setIsManuallyNavigating(true);
-      // User is navigating away from bottom
       isNearBottomRef.current = false;
 
-      // Scroll to the bookmark position
       scrollToMessage(targetMessage.id);
-      setCurrentMessageIndex(messageIndex);
+      if (messageIndex !== -1) setCurrentMessageIndex(messageIndex);
 
-      // Don't update URL to avoid triggering loadMessages reload
-      // Just track the bookmark state internally
-      // const newSearchParams = new URLSearchParams(searchParams);
-      // newSearchParams.set("bookmark", bookmark.id);
-      // navigate(`/chat/${id}?${newSearchParams.toString()}`, { replace: true });
-
-      // Reset manual navigation flag after a longer delay to ensure scroll completes
       setTimeout(() => {
         setIsManuallyNavigating(false);
       }, 2000);
@@ -197,13 +187,13 @@ export default function ChatInterface() {
   const updateMessageQueue = (newMessage: Message) => {
     setMessageQueue((prev) => {
       const updated = [...prev, newMessage];
-      // Keep only the last 15 messages
-      return updated.slice(-15);
+      // Keep only the last 10 messages
+      return updated.slice(-10);
     });
   };
 
   const getLLMContext = () => {
-    // Format the last 15 messages as context for the LLM
+    // Format the last 10 messages as context for the LLM
     return messageQueue
       .map(
         (msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
@@ -310,8 +300,8 @@ export default function ChatInterface() {
         }
       }
 
-      // Initialize message queue with existing messages (last 15)
-      const initialQueue = messageList.slice(-15);
+      // Initialize message queue with existing messages (last 10)
+      const initialQueue = messageList.slice(-10);
       setMessageQueue(initialQueue);
 
       // Load bookmark if specified

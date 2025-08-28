@@ -395,7 +395,7 @@ export async function generateBookmarksForChat(
 
   try {
     // Fetch existing bookmarks for this chat + user
-    const existingBookmarks: Bookmark[] = await blink.db.bookmarks.list({
+    const existingBookmarks: Bookmark[] = await (blink.db as any).bookmarks.list({
       where: { chatSessionId, userId },
     });
 
@@ -434,7 +434,7 @@ export async function generateBookmarksForChat(
       const content = msg.content.trim();
       
       // Skip very short messages (likely just confirmations or simple responses)
-      if (content.length < 20) return false;
+      if (content.length < 10) return false;
       
       // Skip common filler messages
       const lowerContent = content.toLowerCase();
@@ -449,14 +449,19 @@ export async function generateBookmarksForChat(
       // Include messages that are questions, technical content, or substantial discussions
       return (
         content.includes("?") || // Questions
-        content.length > 100 || // Substantial content
+        content.length > 60 || // Substantial content (lowered threshold)
         content.includes("```") || // Code blocks
         lowerContent.includes("how") ||
         lowerContent.includes("what") ||
         lowerContent.includes("why") ||
         lowerContent.includes("explain") ||
         lowerContent.includes("problem") ||
-        lowerContent.includes("issue")
+        lowerContent.includes("issue") ||
+        // Imperative/command intents that often start new topics
+        lowerContent.startsWith("tell") ||
+        lowerContent.startsWith("create") ||
+        lowerContent.startsWith("generate") ||
+        lowerContent.startsWith("write")
       );
     });
 
@@ -509,7 +514,7 @@ Respond with JSON only.`;
       };
 
       try {
-        await blink.db.bookmarks.create(bookmark);
+        await (blink.db as any).bookmarks.create(bookmark);
         createdOrUpdated.push(bookmark);
         alreadyBookmarkedMessageIds.add(message.id); // Track that this message is now bookmarked
         console.log(
@@ -536,7 +541,7 @@ export async function cleanupBookmarks(
   userId: string
 ): Promise<void> {
   try {
-    const existingBookmarks: Bookmark[] = await blink.db.bookmarks.list({
+    const existingBookmarks: Bookmark[] = await (blink.db as any).bookmarks.list({
       where: { chatSessionId, userId },
     });
 
@@ -578,13 +583,13 @@ export async function cleanupBookmarks(
         });
 
         // Update primary bookmark with merged message IDs
-        await blink.db.bookmarks.update(primaryBookmark.id, {
+        await (blink.db as any).bookmarks.update(primaryBookmark.id, {
           messageIds: Array.from(allMessageIds).join(","),
         });
 
         // Delete duplicate bookmarks
         for (let i = 1; i < bookmarks.length; i++) {
-          await blink.db.bookmarks.delete(bookmarks[i].id);
+          await (blink.db as any).bookmarks.delete(bookmarks[i].id);
         }
       }
     }

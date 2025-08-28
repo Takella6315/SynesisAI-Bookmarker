@@ -6,20 +6,17 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   XIcon,
-  FilterIcon,
-  TagIcon,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { ScrollArea } from "../ui/scroll-area";
-import { Badge } from "../ui/badge";
 import { EnhancedBookmark, Message } from "../../types";
 
 interface FloatingBookmarkTimelineProps {
   messages: Message[];
   bookmarks: EnhancedBookmark[];
   currentMessageIndex?: number;
-  onBookmarkClick: (bookmark: EnhancedBookmark) => void;
+  onBookmarkClick: (bookmark: EnhancedBookmark, messageId: string) => void;
   onClose: () => void;
   chatSessionId: string;
 }
@@ -33,8 +30,6 @@ export default function FloatingBookmarkTimeline({
   chatSessionId,
 }: FloatingBookmarkTimelineProps) {
   const [isMinimized, setIsMinimized] = useState(false);
-  const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [filterKeyword, setFilterKeyword] = useState<string>("all");
 
   // Sort bookmarks chronologically by message position
   const sortedBookmarks = useMemo(() => {
@@ -43,48 +38,25 @@ export default function FloatingBookmarkTimeline({
       .sort((a, b) => a.messagePosition - b.messagePosition);
   }, [bookmarks, chatSessionId]);
 
-  // Filter bookmarks by category and keyword
-  const filteredBookmarks = useMemo(() => {
-    let filtered = sortedBookmarks;
-
-    // Filter by category
-    if (filterCategory !== "all") {
-      filtered = filtered.filter((b) => b.category === filterCategory);
-    }
-
-    // Filter by keyword
-    if (filterKeyword !== "all") {
-      filtered = filtered.filter(
-        (b) => b.keywords && b.keywords.includes(filterKeyword)
-      );
-    }
-
-    return filtered;
-  }, [sortedBookmarks, filterCategory, filterKeyword]);
-
-  // Get unique categories for filtering
-  const categories = useMemo(() => {
-    const cats = new Set(
-      bookmarks.map((b) => b.category).filter(Boolean) as string[]
-    );
-    return Array.from(cats);
-  }, [bookmarks]);
-
-  // Get unique keywords for filtering
-  const keywords = useMemo(() => {
-    const keywordSet = new Set<string>();
-    bookmarks.forEach((b) => {
-      if (b.keywords) {
-        b.keywords.forEach((keyword) => keywordSet.add(keyword));
-      }
+  // Group message IDs under each bookmark (static grouping based on provided data)
+  const groupedBookmarkMessages = useMemo(() => {
+    const groups: Record<string, string[]> = {};
+    sortedBookmarks.forEach((bookmark) => {
+      const related = (bookmark as any).relatedMessages as string[] | undefined;
+      const ids = related && related.length > 0
+        ? related
+        : (bookmark.messageIds ? bookmark.messageIds.split(",") : []);
+      groups[bookmark.id] = ids.filter(Boolean);
     });
-    return Array.from(keywordSet).sort();
-  }, [bookmarks]);
+    return groups;
+  }, [sortedBookmarks]);
+
+  // No tag/category filtering; show all bookmarks for this chat
 
   // Calculate timeline visualization
   const timelineData = useMemo(() => {
     const totalMessages = messages.length;
-    return filteredBookmarks.map((bookmark) => ({
+    return sortedBookmarks.map((bookmark) => ({
       ...bookmark,
       progressPercentage:
         (bookmark.messagePosition / Math.max(totalMessages - 1, 1)) * 100,
@@ -92,7 +64,7 @@ export default function FloatingBookmarkTimeline({
         currentMessageIndex >= bookmark.messagePosition - 2 &&
         currentMessageIndex <= bookmark.messagePosition + 2,
     }));
-  }, [filteredBookmarks, messages.length, currentMessageIndex]);
+  }, [sortedBookmarks, messages.length, currentMessageIndex]);
 
   // Format timestamp relative to conversation start
   const formatRelativeTime = (bookmark: EnhancedBookmark) => {
@@ -115,7 +87,7 @@ export default function FloatingBookmarkTimeline({
           className="bg-background/95 backdrop-blur-sm border-border shadow-lg hover:shadow-xl transition-all"
         >
           <BookmarkIcon className="w-4 h-4 mr-2" />
-          <span className="text-sm">{filteredBookmarks.length} Bookmarks</span>
+          <span className="text-sm">{sortedBookmarks.length} Bookmarks</span>
           <ChevronUpIcon className="w-4 h-4 ml-2" />
         </Button>
       </div>
@@ -155,7 +127,7 @@ export default function FloatingBookmarkTimeline({
           <div className="mt-3">
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
               <span>Conversation Timeline</span>
-              <span>{filteredBookmarks.length} bookmarks</span>
+              <span>{sortedBookmarks.length} bookmarks</span>
             </div>
             <div className="relative h-2 bg-muted rounded-full">
               <div
@@ -171,7 +143,7 @@ export default function FloatingBookmarkTimeline({
               {timelineData.map((bookmark) => (
                 <button
                   key={bookmark.id}
-                  onClick={() => onBookmarkClick(bookmark)}
+                  onClick={() => onBookmarkClick(bookmark, (groupedBookmarkMessages[bookmark.id]?.[0] || bookmark.messageIds || ""))}
                   className={`absolute top-0 h-2 w-1 rounded-full transition-all duration-200 hover:scale-y-150 ${
                     bookmark.isCurrentlyViewed
                       ? "bg-primary shadow-md scale-y-125"
@@ -184,65 +156,7 @@ export default function FloatingBookmarkTimeline({
             </div>
           </div>
 
-          {/* Category Filter */}
-          {categories.length > 0 && (
-            <div className="flex items-center gap-2 mt-3">
-              <FilterIcon className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Category:</span>
-              <div className="flex flex-wrap gap-1">
-                <Button
-                  onClick={() => setFilterCategory("all")}
-                  variant={filterCategory === "all" ? "default" : "outline"}
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                >
-                  All
-                </Button>
-                {categories.map((category) => (
-                  <Button
-                    key={category}
-                    onClick={() => setFilterCategory(category)}
-                    variant={
-                      filterCategory === category ? "default" : "outline"
-                    }
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                  >
-                    {category}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Keyword Filter */}
-          {keywords.length > 0 && (
-            <div className="flex items-center gap-2 mt-2">
-              <TagIcon className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Type:</span>
-              <div className="flex flex-wrap gap-1">
-                <Button
-                  onClick={() => setFilterKeyword("all")}
-                  variant={filterKeyword === "all" ? "default" : "outline"}
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                >
-                  All
-                </Button>
-                {keywords.map((keyword) => (
-                  <Button
-                    key={keyword}
-                    onClick={() => setFilterKeyword(keyword)}
-                    variant={filterKeyword === keyword ? "default" : "outline"}
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                  >
-                    {keyword}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Tag/Category filters removed */}
         </CardHeader>
 
         <CardContent className="pt-0">
@@ -264,8 +178,8 @@ export default function FloatingBookmarkTimeline({
                     )}
 
                     <div
-                      onClick={() => onBookmarkClick(bookmark)}
-                      className={`relative cursor-pointer p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
+                      onClick={() => onBookmarkClick(bookmark, (groupedBookmarkMessages[bookmark.id]?.[0] || bookmark.messageIds || ""))}
+                      className={`relative p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
                         bookmark.isCurrentlyViewed
                           ? "bg-accent/20 border-accent shadow-sm"
                           : "bg-background hover:bg-accent/10 border-border"
@@ -299,32 +213,21 @@ export default function FloatingBookmarkTimeline({
 
                         <div className="flex items-start justify-between mt-3 gap-3">
                           <div className="flex items-center gap-2 flex-wrap flex-1">
-                            {bookmark.category && (
-                              <Badge
-                                variant="secondary"
-                                className="text-xs px-2 py-1"
-                              >
-                                <TagIcon className="w-2.5 h-2.5 mr-1" />
-                                {bookmark.category}
-                              </Badge>
-                            )}
-                            {bookmark.keywords &&
-                              bookmark.keywords.map((keyword) => (
-                                <Badge
-                                  key={keyword}
-                                  variant="outline"
-                                  className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border-blue-200"
-                                >
-                                  {keyword}
-                                </Badge>
-                              ))}
-                            {bookmark.segmentContext && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs px-2 py-1"
-                              >
-                                Topic: {bookmark.segmentContext.title}
-                              </Badge>
+                            {/* Per-bookmark message chips */}
+                            {groupedBookmarkMessages[bookmark.id] && groupedBookmarkMessages[bookmark.id].length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {groupedBookmarkMessages[bookmark.id].map((msgId) => (
+                                  <Button
+                                    key={msgId}
+                                    variant={"outline"}
+                                    size="sm"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => onBookmarkClick(bookmark, msgId)}
+                                  >
+                                    #{Math.max(1, messages.findIndex(m => m.id === msgId) + 1)}
+                                  </Button>
+                                ))}
+                              </div>
                             )}
                           </div>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
@@ -344,6 +247,40 @@ export default function FloatingBookmarkTimeline({
                             />
                           </div>
                         </div>
+
+                        {/* Per-bookmark navigation when multiple messages exist */}
+                        {groupedBookmarkMessages[bookmark.id] && groupedBookmarkMessages[bookmark.id].length > 1 && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                const ids = groupedBookmarkMessages[bookmark.id];
+                                const idxs = ids.map(id => messages.findIndex(m => m.id === id)).filter(i => i >= 0);
+                                const currentClosest = idxs.reduce((closest, idx) => Math.abs(idx - currentMessageIndex) < Math.abs(closest - currentMessageIndex) ? idx : closest, idxs[0]);
+                                const pos = Math.max(0, idxs.indexOf(currentClosest) - 1);
+                                onBookmarkClick(bookmark, ids[pos]);
+                              }}
+                            >
+                              Prev
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                const ids = groupedBookmarkMessages[bookmark.id];
+                                const idxs = ids.map(id => messages.findIndex(m => m.id === id)).filter(i => i >= 0);
+                                const currentClosest = idxs.reduce((closest, idx) => Math.abs(idx - currentMessageIndex) < Math.abs(closest - currentMessageIndex) ? idx : closest, idxs[0]);
+                                const pos = Math.min(idxs.length - 1, idxs.indexOf(currentClosest) + 1);
+                                onBookmarkClick(bookmark, ids[pos]);
+                              }}
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
